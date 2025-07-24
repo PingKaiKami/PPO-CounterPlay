@@ -1,0 +1,29 @@
+{
+    "EnemyAI": {
+        "checkpoints": [
+            {
+                "steps": 2599,
+                "file_path": "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-2599.onnx",
+                "reward": -1.2140538548404807,
+                "creation_time": 1753188085.530879,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-2599.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 2599,
+            "file_path": "results\\EnemyAI_Training_Run_01\\EnemyAI.onnx",
+            "reward": -1.2140538548404807,
+            "creation_time": 1753188085.530879,
+            "auxillary_file_paths": [
+                "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-2599.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}

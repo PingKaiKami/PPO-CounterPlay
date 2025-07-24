@@ -1,0 +1,47 @@
+{
+    "EnemyAI": {
+        "checkpoints": [
+            {
+                "steps": 499981,
+                "file_path": "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-499981.onnx",
+                "reward": 1.6499833506356179,
+                "creation_time": 1753207766.7552717,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-499981.pt"
+                ]
+            },
+            {
+                "steps": 999987,
+                "file_path": "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-999987.onnx",
+                "reward": 2.470638844252891,
+                "creation_time": 1753209779.9512954,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-999987.pt"
+                ]
+            },
+            {
+                "steps": 1000115,
+                "file_path": "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-1000115.onnx",
+                "reward": 2.470638844252891,
+                "creation_time": 1753209780.0171084,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-1000115.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 1000115,
+            "file_path": "results\\EnemyAI_Build_Run_10\\EnemyAI.onnx",
+            "reward": 2.470638844252891,
+            "creation_time": 1753209780.0171084,
+            "auxillary_file_paths": [
+                "results\\EnemyAI_Build_Run_10\\EnemyAI\\EnemyAI-1000115.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}
