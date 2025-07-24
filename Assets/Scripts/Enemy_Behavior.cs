@@ -93,7 +93,7 @@ public class Enemy_Behavior : MonoBehaviour
         time = 0f;
         mat.color = targetColor;
         //attacking
-        isInRange = attackRange_enemy.isInRange();
+        isInRange = attackRange_enemy.IsInRange();
         if (isInRange)
         {
             HP player_HP = FindObjectOfType<HP>();

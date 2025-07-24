@@ -368,7 +368,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.11559233, y: 0.000000034182086, z: -0.0000000039778514, w: 0.9932968}
+  m_LocalRotation: {x: 0.11559233, y: -0.00000003418209, z: 0.000000003977852, w: 0.9932968}
   m_LocalPosition: {x: 2.07, y: 2.5, z: -7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -577,18 +577,28 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 3000
+  MaxStep: 5000
   curState: 0
   orientation: {fileID: 81606207}
   enemyObj: {fileID: 1566876127}
   moveSpeed: 3
   rotationSpeed: 3
   attackPatterns:
-  - attackName: Normal
+  - attackName: NormalAttack
     startUpTime: 1
     damage: 25
     recoveryTime: 1
     attackRange: 3
+  - attackName: WeakAttack
+    startUpTime: 0.5
+    damage: 15
+    recoveryTime: 0.5
+    attackRange: 2
+  - attackName: StrongAttack
+    startUpTime: 2.5
+    damage: 50
+    recoveryTime: 1
+    attackRange: 4
   playerTransform: {fileID: 995784695}
   maxEpisodeTime: 60
 --- !u!114 &365336484
@@ -676,7 +686,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 369958734}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.11559233, y: 0.00000001709104, z: -0.0000000019889252, w: 0.99329674}
+  m_LocalRotation: {x: 0.11559233, y: -0.000000017091047, z: 0.0000000019889261, w: 0.99329674}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -2048,7 +2058,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemy: {fileID: 365336475}
   curState: 0
-  curMode: 3
+  curMode: 7
   target: {fileID: 365336479}
   orientation: {fileID: 424834516}
   moveSpeed: 5
@@ -2360,7 +2370,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1000, y: 1000, z: 10}
+  m_LocalScale: {x: 100, y: 100, z: 100}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}

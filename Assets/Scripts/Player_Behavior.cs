@@ -45,7 +45,7 @@ public class Player_Behavior : MonoBehaviour
     public float attackBufferRange = 0.2f; // 預輸入距離(因為攻擊有延遲)
     public float attackStartUpTime = 0.5f;
     public float attackCooldown = 1f;
-    
+
     [Header("AI Decision Making")]
     [Tooltip("左右橫移的速度")]
     public float strafeSpeed = 1.5f;
@@ -56,11 +56,14 @@ public class Player_Behavior : MonoBehaviour
     protected AttackRange attackRange;
     protected float attackRadius;
     protected Material mat;
-    public float preferredDistanceToEnemy = 3; // 保持與敵人的距離
+    private float distanceToEnemy = 3; // 保持與敵人的距離
     private Vector3 moveDirection;
     private int clockwise = 0; // AttackAndRun & AttackAndDash 模式的內部狀態
     private bool isDashing = false;
     private bool canDash = true;
+    private float waitTime = 0;
+    private int randomWaitTime = 0;
+    private bool forceSmartAttack = false;
     protected private void Move()
     {
         Vector3 directionToTarget;
@@ -135,7 +138,7 @@ public class Player_Behavior : MonoBehaviour
                 distanceToTarget = directionToTarget.magnitude;
                 if (canDash)
                 {
-                    if (distanceToTarget > preferredDistanceToEnemy)
+                    if (distanceToTarget > distanceToEnemy)
                     {
                         moveDirection = directionToTarget;
                         StartCoroutine(Dash());
@@ -167,7 +170,7 @@ public class Player_Behavior : MonoBehaviour
                 }
                 else
                 {
-                    if (distanceToTarget < preferredDistanceToEnemy)
+                    if (distanceToTarget < distanceToEnemy)
                     {
                         moveDirection = -directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
@@ -209,7 +212,7 @@ public class Player_Behavior : MonoBehaviour
                     }
                     else if (!isDashing)
                     {
-                        if (distanceToTarget < preferredDistanceToEnemy)
+                        if (distanceToTarget < distanceToEnemy)
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
@@ -231,9 +234,9 @@ public class Player_Behavior : MonoBehaviour
                 directionToTarget.y = 0;
                 distanceToTarget = directionToTarget.magnitude;
 
-                if (curState == PlayerState.Idle || curState == PlayerState.StartUp)
+                if (curState == PlayerState.Idle || curState == PlayerState.StartUp || forceSmartAttack)
                 {
-                    if (enemy.GetComponent<Enemy_Agent>().GetEnemyState() == Enemy_Agent.EnemyState.Recovery || curState == PlayerState.StartUp)
+                    if (enemy.GetComponent<Enemy_Agent>().GetEnemyState() == Enemy_Agent.EnemyState.Recovery || curState == PlayerState.StartUp || forceSmartAttack)
                     {
                         if (distanceToTarget > (attackRadius + attackBufferRange) || curState == PlayerState.StartUp)
                         {
@@ -243,11 +246,12 @@ public class Player_Behavior : MonoBehaviour
                         else
                         {
                             StartCoroutine(Attack());
+                            forceSmartAttack = false;
                         }
                     }
                     else
                     {
-                        if (distanceToTarget < preferredDistanceToEnemy)
+                        if (distanceToTarget < distanceToEnemy)
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
@@ -258,6 +262,18 @@ public class Player_Behavior : MonoBehaviour
                             Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                             rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
                         }
+
+                        if (waitTime < randomWaitTime)
+                        {
+                            waitTime += Time.deltaTime;
+                        }
+                        else
+                        {
+                            forceSmartAttack = true;
+                            waitTime = 0f;
+                            SetRandomTime();
+                        }
+
                     }
                 }
                 else
@@ -270,7 +286,7 @@ public class Player_Behavior : MonoBehaviour
                     }
                     else if (!isDashing)
                     {
-                        if (distanceToTarget < preferredDistanceToEnemy)
+                        if (distanceToTarget < distanceToEnemy)
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
@@ -351,7 +367,7 @@ public class Player_Behavior : MonoBehaviour
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }
-        if(curState == PlayerState.Recovery)
+        if (curState == PlayerState.Recovery)
             curState = PlayerState.Waiting;
     }
     IEnumerator Dash()
@@ -387,7 +403,7 @@ public class Player_Behavior : MonoBehaviour
     public void SetRandomTrainingMode()
     {
         System.Array allModes = System.Enum.GetValues(typeof(TrainingMode));
-        
+
         List<TrainingMode> availableModes = new List<TrainingMode>();
         foreach (TrainingMode mode in allModes)
         {
@@ -399,7 +415,15 @@ public class Player_Behavior : MonoBehaviour
         }
         int randomIndex = Random.Range(0, availableModes.Count);
         curMode = availableModes[randomIndex];
-        
+
         Debug.Log($"Player mode set to: {curMode}");
+    }
+    protected private void SetRandomTime()
+    {
+        randomWaitTime = Random.Range(3, 5);
+    }
+    public void ChangeDistanceToEnemy(float distance)
+    {
+        distanceToEnemy = distance;
     }
 }

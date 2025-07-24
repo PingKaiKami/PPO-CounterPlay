@@ -8,6 +8,7 @@ public class Player : Player_Behavior
         attackRange = GetComponentInChildren<AttackRange>();
         attackRadius = attackRange.radius;
         mat = GetComponentInChildren<Renderer>().material;
+        SetRandomTime();
     }
     void Update()
     {

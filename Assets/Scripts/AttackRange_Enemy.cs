@@ -27,12 +27,12 @@ public class AttackRange_Enemy : MonoBehaviour
             isHit = false;
         }
     }
-    public bool isInRange()
+    public bool IsInRange()
     {
         return isHit;
     }
 
-    public void changeRange(AttackData attackData)
+    public void ChangeRange(AttackData attackData)
     {
         radius = attackData.attackRange;
         GetComponent<SphereCollider>().radius = radius;

@@ -255,6 +255,8 @@ public class Enemy_Agent : Agent
         // 條件 a: 玩家死亡 (敵人獲勝)
         if (player_HP != null && player_HP.IsDead())
         {
+            float timeBonus = (maxEpisodeTime - episodeTimer) / maxEpisodeTime;
+            AddReward(timeBonus * 2.0f);
             SetReward(1);
             Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
             EndEpisode();
@@ -292,7 +294,8 @@ public class Enemy_Agent : Agent
 
     IEnumerator Attack(AttackData attackData)
     {
-        attackRange_enemy.changeRange(attackData);
+        attackRange_enemy.ChangeRange(attackData);
+        player_Behavior.ChangeDistanceToEnemy(attackData.attackRange);
 
         float time = 0f;
         curState = EnemyState.StartUp;
@@ -307,7 +310,7 @@ public class Enemy_Agent : Agent
 
         mat.color = targetColor;
 
-        bool isInRange = attackRange_enemy.isInRange();
+        bool isInRange = attackRange_enemy.IsInRange();
         if (isInRange)
         {
             if (player_HP != null)
