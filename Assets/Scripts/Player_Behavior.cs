@@ -21,11 +21,11 @@ public class Player_Behavior : MonoBehaviour
         AttackAndRun,
         AttackAndDash,
         SmartAttack,
+        LongRangeAttack,
         Escape,
         Random,
         Manual
     }
-
     public GameObject enemy;
 
     [Header("Behavior Settings")]
@@ -36,6 +36,7 @@ public class Player_Behavior : MonoBehaviour
 
     [Header("Movement & Dash")]
     public float moveSpeed = 3f;
+    public float rotationSpeed = 3f;
     public float dashSpeed = 30f;
     public float dashDuration = 0.2f;
     public float dashCooldown = 1f;
@@ -44,7 +45,15 @@ public class Player_Behavior : MonoBehaviour
     public int damage = 10;
     public float attackBufferRange = 0.2f; // 預輸入距離(因為攻擊有延遲)
     public float attackStartUpTime = 0.5f;
-    public float attackCooldown = 1f;
+    public float attackRecoveryTime = 1f;
+
+    [Header("LongAttack")]
+    public GameObject arrow;
+    public int longAttackDamage = 20;
+    public float longAttackStartUpTime;
+    public float longAttackRecoveryTime;
+    public float longAttackRange;
+    public float arrowSpeed;
 
     [Header("AI Decision Making")]
     [Tooltip("左右橫移的速度")]
@@ -115,6 +124,8 @@ public class Player_Behavior : MonoBehaviour
                 if (!isDashing)
                 {
                     rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                 }
 
                 if (moveDirection.magnitude <= (attackRadius + attackBufferRange) && curState == PlayerState.Idle)
@@ -161,6 +172,8 @@ public class Player_Behavior : MonoBehaviour
                     {
                         moveDirection = directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                     }
                     else
                     {
@@ -174,12 +187,16 @@ public class Player_Behavior : MonoBehaviour
                     {
                         moveDirection = -directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                     }
                     else
                     {
                         clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
                         Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                         rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                     }
                 }
                 break;
@@ -196,6 +213,8 @@ public class Player_Behavior : MonoBehaviour
                     {
                         moveDirection = directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                     }
                     else
                     {
@@ -216,12 +235,16 @@ public class Player_Behavior : MonoBehaviour
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                         else
                         {
                             clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
                             Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                             rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                     }
 
@@ -242,6 +265,8 @@ public class Player_Behavior : MonoBehaviour
                         {
                             moveDirection = directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                         else
                         {
@@ -255,12 +280,16 @@ public class Player_Behavior : MonoBehaviour
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                         else
                         {
                             clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
                             Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                             rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
 
                         if (waitTime < randomWaitTime)
@@ -290,15 +319,48 @@ public class Player_Behavior : MonoBehaviour
                         {
                             moveDirection = -directionToTarget;
                             rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                         else
                         {
                             clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
                             Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                             rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         }
                     }
                 }
+                break;
+
+            case TrainingMode.LongRangeAttack:
+                directionToTarget = target.position - transform.position;
+                directionToTarget.y = 0;
+                distanceToTarget = directionToTarget.magnitude;
+                if (curState == PlayerState.Idle || curState == PlayerState.Waiting)
+                {
+                    if (distanceToTarget < longAttackRange)
+                    {
+                        moveDirection = -directionToTarget;
+                        rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                    }
+                    else
+                    {
+                        clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
+                        Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
+                        rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                        Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                        if (curState == PlayerState.Idle)
+                        {
+                            StartCoroutine(LongAttack());
+                        }
+                    }
+                }
+                
                 break;
 
             case TrainingMode.Escape:
@@ -308,6 +370,8 @@ public class Player_Behavior : MonoBehaviour
                 if (!isDashing)
                 {
                     rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                 }
                 break;
         }
@@ -360,10 +424,49 @@ public class Player_Behavior : MonoBehaviour
         curState = PlayerState.Recovery;
         time = 0f;
         targetColor = Color.white;
-        while (time < attackCooldown)
+        while (time < attackRecoveryTime)
         {
             time += Time.deltaTime;
-            float t = time / attackCooldown;
+            float t = time / attackRecoveryTime;
+            mat.color = Color.Lerp(Color.yellow, targetColor, t);
+            yield return null;
+        }
+        if (curState == PlayerState.Recovery)
+            curState = PlayerState.Waiting;
+    }
+    IEnumerator LongAttack()
+    {
+        curState = PlayerState.StartUp;
+        rb.velocity = Vector3.zero;
+
+        moveDirection = target.position - transform.position;
+        moveDirection.y = 0f;
+        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+
+        float time = 0f;
+        Color targetColor = Color.yellow;
+        while (time < attackStartUpTime)
+        {
+            time += Time.deltaTime;
+            float t = time / attackStartUpTime;
+            mat.color = Color.Lerp(Color.white, targetColor, t);
+            yield return null;
+        }
+
+        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection.normalized * 2, arrow.transform.rotation);
+        newArrow.GetComponent<Arrow>().damage = longAttackDamage;
+
+        Rigidbody arrow_rb = newArrow.GetComponent<Rigidbody>();
+        arrow_rb.velocity = moveDirection * arrowSpeed;
+
+        curState = PlayerState.Recovery;
+        time = 0f;
+        targetColor = Color.white;
+        while (time < attackRecoveryTime)
+        {
+            time += Time.deltaTime;
+            float t = time / attackRecoveryTime;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }
@@ -379,6 +482,8 @@ public class Player_Behavior : MonoBehaviour
             dashDir = orientation.forward;
 
         rb.velocity = dashDir * dashSpeed;
+        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
 
         yield return new WaitForSeconds(dashDuration);
 
@@ -407,8 +512,8 @@ public class Player_Behavior : MonoBehaviour
         List<TrainingMode> availableModes = new List<TrainingMode>();
         foreach (TrainingMode mode in allModes)
         {
-            // 暫時排除 Escape, OnlyAttack, OnlyDash的模式
-            if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyAttack && mode != TrainingMode.OnlyDash)
+            // 暫時排除 Escape的模式
+            if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash)
             {
                 availableModes.Add(mode);
             }
@@ -420,7 +525,7 @@ public class Player_Behavior : MonoBehaviour
     }
     protected private void SetRandomTime()
     {
-        randomWaitTime = Random.Range(3, 5);
+        randomWaitTime = Random.Range(0, 3);
     }
     public void ChangeDistanceToEnemy(float distance)
     {

@@ -467,6 +467,7 @@ GameObject:
   - component: {fileID: 365336481}
   - component: {fileID: 365336480}
   - component: {fileID: 365336484}
+  - component: {fileID: 365336485}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -545,7 +546,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 10
+    VectorObservationSize: 13
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -583,22 +584,229 @@ MonoBehaviour:
   enemyObj: {fileID: 1566876127}
   moveSpeed: 3
   rotationSpeed: 3
-  attackPatterns:
-  - attackName: NormalAttack
-    startUpTime: 1
-    damage: 25
-    recoveryTime: 1
-    attackRange: 3
-  - attackName: WeakAttack
-    startUpTime: 0.5
-    damage: 15
-    recoveryTime: 0.5
-    attackRange: 2
-  - attackName: StrongAttack
-    startUpTime: 2.5
-    damage: 50
-    recoveryTime: 1
-    attackRange: 4
+  comboPatterns:
+  - comboName: Normal Attack
+    attackSteps:
+    - stepName: Normal Attack 1
+      startupTime: 1
+      recoveryTime: 1
+      damage: 25
+      attackRange: 3
+      attackAngle: 120
+      forwardMovement: 0
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.81944615
+          value: 0.33655262
+          inSlope: 1.3620474
+          outSlope: 1.3620474
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.46225816
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    comboCooldown: 1
+  - comboName: Triple Attack
+    attackSteps:
+    - stepName: Triple Attack 1
+      startupTime: 2
+      recoveryTime: 0
+      damage: 10
+      attackRange: 2
+      attackAngle: 60
+      forwardMovement: 1
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.81944615
+          value: 0.33655262
+          inSlope: 1.3620474
+          outSlope: 1.3620474
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.46225816
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    - stepName: Triple Attack 2
+      startupTime: 0.5
+      recoveryTime: 0
+      damage: 15
+      attackRange: 2
+      attackAngle: 60
+      forwardMovement: 1
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    - stepName: Triple Attack 3
+      startupTime: 0.5
+      recoveryTime: 2
+      damage: 20
+      attackRange: 3
+      attackAngle: 60
+      forwardMovement: 2
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    comboCooldown: 1
+  - comboName: Strong Attack
+    attackSteps:
+    - stepName: Strong Attack 1
+      startupTime: 2
+      recoveryTime: 0
+      damage: 20
+      attackRange: 2
+      attackAngle: 180
+      forwardMovement: 0
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    - stepName: Strong Attack 2
+      startupTime: 3
+      recoveryTime: 3
+      damage: 40
+      attackRange: 4
+      attackAngle: 30
+      forwardMovement: 3
+      movementCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.81944615
+          value: 0.33655262
+          inSlope: 1.3620474
+          outSlope: 1.3620474
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.46225816
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    comboCooldown: 1
   playerTransform: {fileID: 995784695}
   maxEpisodeTime: 60
 --- !u!114 &365336484
@@ -615,6 +823,34 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hpSlider: {fileID: 1993857866}
   maxHP: 100
+--- !u!114 &365336485
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 365336475}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SensorName: RayPerceptionSensor
+  m_DetectableTags:
+  - Player
+  - Projectile
+  m_RaysPerDirection: 3
+  m_MaxRayDegrees: 180
+  m_SphereCastRadius: 0.5
+  m_RayLength: 20
+  m_RayLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967291
+  m_ObservationStacks: 1
+  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
+  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
+  m_StartVerticalOffset: 0
+  m_EndVerticalOffset: 0
 --- !u!1 &369958734
 GameObject:
   m_ObjectHideFlags: 3
@@ -1798,7 +2034,7 @@ GameObject:
   - component: {fileID: 901608428}
   - component: {fileID: 901608430}
   - component: {fileID: 901608429}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: AttackRange
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1833,6 +2069,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   radius: 1.5
+  angle: 90
 --- !u!135 &901608430
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -2058,17 +2295,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemy: {fileID: 365336475}
   curState: 0
-  curMode: 7
+  curMode: 6
   target: {fileID: 365336479}
   orientation: {fileID: 424834516}
   moveSpeed: 5
+  rotationSpeed: 10
   dashSpeed: 30
   dashDuration: 0.1
   dashCooldown: 1
   damage: 15
   attackBufferRange: 0.5
   attackStartUpTime: 0.5
-  attackCooldown: 1
+  attackRecoveryTime: 1
+  arrow: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234, type: 3}
+  longAttackDamage: 20
+  longAttackStartUpTime: 3
+  longAttackRecoveryTime: 1
+  longAttackRange: 5
+  arrowSpeed: 7
   strafeSpeed: 1.5
   strafeDirectionChangeInterval: 2
   waitingPossibility: 0.99
@@ -2679,7 +2923,7 @@ GameObject:
   - component: {fileID: 1613380920}
   - component: {fileID: 1613380921}
   - component: {fileID: 1613380922}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: AttackRange
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2734,6 +2978,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72e1cfd091012ff4c9a3b5a4c1627922, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentRadius: 1.5
+  currentAngle: 90
 --- !u!1 &1813614441
 GameObject:
   m_ObjectHideFlags: 0

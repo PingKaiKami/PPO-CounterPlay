@@ -2,22 +2,22 @@
     "EnemyAI": {
         "checkpoints": [
             {
-                "steps": 5655,
-                "file_path": "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-5655.onnx",
-                "reward": -4.054409123279831,
-                "creation_time": 1753338868.0645463,
+                "steps": 984,
+                "file_path": "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-984.onnx",
+                "reward": -6.003300249576569,
+                "creation_time": 1753768784.7623696,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-5655.pt"
+                    "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-984.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 5655,
+            "steps": 984,
             "file_path": "results\\EnemyAI_Training_Run_01\\EnemyAI.onnx",
-            "reward": -4.054409123279831,
-            "creation_time": 1753338868.0645463,
+            "reward": -6.003300249576569,
+            "creation_time": 1753768784.7623696,
             "auxillary_file_paths": [
-                "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-5655.pt"
+                "results\\EnemyAI_Training_Run_01\\EnemyAI\\EnemyAI-984.pt"
             ]
         }
     },

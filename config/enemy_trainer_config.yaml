@@ -17,6 +17,6 @@ behaviors:
       extrinsic:
         gamma: 0.99 # 折扣因子，代表對未來獎勵的重視程度
         strength: 1.0
-    max_steps: 1500000 # 總訓練步數
+    max_steps: 1000000 # 總訓練步數
     time_horizon: 128
     summary_freq: 10000

@@ -21,15 +21,12 @@ public class Enemy_Agent : Agent
     public float rotationSpeed = 3f;
 
     [Header("Attack Patterns")]
-    public AttackData[] attackPatterns; // 創建一個 AttackData 的陣列
-    // public int damage = 1;
-    // public float startUpTime = 0.5f;
-    // public float recoveryTime = 1f;
+    public ComboData[] comboPatterns;
 
     // --- ML-Agents & 遊戲邏輯相關變數 ---
     public Transform playerTransform;
-    public float maxEpisodeTime = 60f; // 最大回合時間 
-    private float episodeTimer;        // 當前回合的計時器
+    public float maxEpisodeTime = 60f;
+    private float episodeTimer;
     private HP player_HP;
     private HP enemy_HP;
 
@@ -40,24 +37,23 @@ public class Enemy_Agent : Agent
     private Rigidbody rb;
     private Vector3 moveDirection;
     private bool isRandom = false;
-    private float attackRange;
-    private float playerAttackRange;
+    private float attackRange = 2f;
 
     void Awake()
     {
         // ================== 動態調整 Branch Size 的核心邏輯 ==================
-        
+
         // 1. 獲取掛載在同一個物件上的 BehaviorParameters 元件
         var behaviorParameters = GetComponent<BehaviorParameters>();
-        
-        
+
+
         // 2. 獲取當前的動作規範 (ActionSpec)
         //    ActionSpec 是一個包含了所有分支資訊的結構
         ActionSpec actionSpec = behaviorParameters.BrainParameters.ActionSpec;
 
         // 3. 計算新的攻擊分支大小
         //    大小 = 1 (不攻擊) + 攻擊模式的數量
-        int newAttackBranchSize = 1 + attackPatterns.Length;
+        int newAttackBranchSize = 1 + comboPatterns.Length;
 
         // 4. 檢查當前設定是否已經是正確的
         if (actionSpec.BranchSizes[1] != newAttackBranchSize)
@@ -77,11 +73,10 @@ public class Enemy_Agent : Agent
             behaviorParameters.BrainParameters.ActionSpec = actionSpec;
 
             // 打印一條日誌，讓你知道程式碼已經自動修改了設定
-            Debug.Log($"Attack Branch Size for {gameObject.name} was dynamically set to {newAttackBranchSize} based on {attackPatterns.Length} attack patterns.");
+            Debug.Log($"Attack Branch Size for {gameObject.name} was dynamically set to {newAttackBranchSize} based on {comboPatterns.Length} attack patterns.");
         }
         // =======================================================================
     }
-
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -93,7 +88,6 @@ public class Enemy_Agent : Agent
         {
             player_HP = playerTransform.GetComponent<HP>();
             player_Behavior = playerTransform.GetComponent<Player_Behavior>();
-            playerAttackRange = playerTransform.GetComponentInChildren<AttackRange>().radius;
         }
         enemy_HP = GetComponent<HP>();
     }
@@ -126,51 +120,52 @@ public class Enemy_Agent : Agent
 
     }
 
-    // 收集觀測資訊 (Agent的"眼睛")
+    // 收集觀測資訊
     public override void CollectObservations(VectorSensor sensor)
     {
         if (playerTransform == null || player_Behavior == null)
         {
-            // 如果找不到玩家，提供 9 個 0 作為佔位符
-            for (int i = 0; i < 9; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 13; i++) sensor.AddObservation(0f);
             return;
         }
 
-        // 1. 自己到玩家的方向向量 (3 個值)
+        // 1. 自己的面對方向 (3 個值)
+        sensor.AddObservation(enemyObj.forward.normalized);
+
+        // 2. 自己到玩家的方向向量 (3 個值)
         Vector3 toPlayer = playerTransform.position - transform.position;
         sensor.AddObservation(toPlayer.normalized);
 
-        // 2. 距離(1 個值)
+        // 3. 自己是否正對著玩家 (1 個值)
+        float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
+        sensor.AddObservation(alignment);
+
+        // 4. 距離(1 個值)
         sensor.AddObservation(toPlayer.magnitude);
 
-        // 3. 玩家速度向量 (3 個值)
+        // 5. 玩家速度向量 (3 個值)
         // 確保 rigidbody 不是 null
         Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
         sensor.AddObservation(playerRb != null ? playerRb.velocity : Vector3.zero);
 
-        // 4. 玩家的詳細狀態 (PlayerState) (1 個值)
+        // 6. 玩家的詳細狀態 (PlayerState) (1 個值)
         // 將 enum 轉換為整數，讓 AI 學習
         sensor.AddObservation((int)player_Behavior.GetCurrentState());
 
-        // 5. 自己的狀態 (EnemyState) (1 個值)
+        // 7. 自己的狀態 (EnemyState) (1 個值)
         sensor.AddObservation((int)curState);
-
-        // 6. 自己是否在玩家的攻擊範圍內 (1 個值)
-        // 讓 AI 知道它是否處於危險之中
-        sensor.AddObservation(player_Behavior.IsEnemyInAttackRange(gameObject));
     }
 
     // 接收來自神經網路的動作指令
     public override void OnActionReceived(ActionBuffers actions)
     {
         // --- 1. 持續更新移動和朝向 ---
-        // 無論處於何種狀態，AI都應該根據決策更新它想去哪裡。
         int moveAction = actions.DiscreteActions[0];
         UpdateMoveDirection(moveAction);
 
         // --- 2. 根據狀態決定是否能執行新指令 (攻擊/防禦) ---
         // 如果正在攻擊流程中或防禦中，則不處理新的攻擊或防禦指令。
-        if (curState == EnemyState.StartUp || curState == EnemyState.Recovery || curState == EnemyState.Defending)
+        if (curState == EnemyState.StartUp || curState == EnemyState.Defending)
         {
             // 如果從防禦狀態釋放，則變回Idle
             // if (curState == EnemyState.Defending && actions.DiscreteActions[2] == 0)
@@ -196,36 +191,61 @@ public class Enemy_Agent : Agent
             int attackIndex = attackAction - 1;
 
             // 安全檢查，確保索引不會超出陣列範圍
-            if (attackIndex < attackPatterns.Length)
+            if (attackIndex < comboPatterns.Length)
             {
                 // 獲取對應的攻擊數據
-                AttackData selectedAttack = attackPatterns[attackIndex];
-                
+                ComboData selectedAttack = comboPatterns[attackIndex];
+
                 // 立即改變狀態以防止重複觸發
                 curState = EnemyState.StartUp;
-                
+
                 // 啟動協程，並將選中的攻擊數據傳遞過去
                 StartCoroutine(Attack(selectedAttack));
             }
         }
+        // 距離Reward
+        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
-        Vector3 selfXZ = new Vector3(transform.position.x, 0, transform.position.z);
-        Vector3 playerXZ = new Vector3(playerTransform.position.x, 0, playerTransform.position.z);
+        float minDistance = 1;
+        float maxDistance = attackRange;
+        float bestDistance = Mathf.Max(attackRange - 0.5f, minDistance);
+        float maxDistanceReward = 0.001f;
 
-        float distanceToPlayer = Vector3.Distance(selfXZ, playerXZ);
+        float distanceScore;
 
-        if (distanceToPlayer <= playerAttackRange)
+        if (distanceToPlayer >= bestDistance)
         {
-            AddReward(0.0002f);
+            distanceScore = Mathf.InverseLerp(maxDistance, bestDistance, distanceToPlayer);
         }
-        else if (distanceToPlayer <= attackRange && distanceToPlayer > playerAttackRange)
+        else
         {
-            AddReward(0.001f);
+            distanceScore = Mathf.InverseLerp(minDistance, bestDistance, distanceToPlayer);
         }
+
+        distanceScore = Mathf.Clamp01(distanceScore);
+
+        float reward = distanceScore * maxDistanceReward;
+        AddReward(reward);
+
+        // 面對方向Reward
+        Vector3 toPlayer = playerTransform.position - transform.position;
+        toPlayer.y = 0;
+
+        float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
+
+        if (alignment > 0)
+        {
+            float aimingReward = alignment * (1.0f / (1.0f + distanceToPlayer));
+            AddReward(aimingReward * 0.005f);
+        }
+        else
+        {
+            AddReward(-0.005f);
+        }
+
         AddReward(-0.0001f);
     }
 
-    // 新增一個輔助函式來處理移動方向的更新，讓 OnActionReceived 更乾淨
     private void UpdateMoveDirection(int moveAction)
     {
         Vector3 moveInput = Vector3.zero;
@@ -248,10 +268,8 @@ public class Enemy_Agent : Agent
     // 在 FixedUpdate 中檢查結束條件是個好習慣，因為它與物理更新同步
     void FixedUpdate()
     {
-        // --- 1. 更新計時器 ---
         episodeTimer += Time.fixedDeltaTime;
 
-        // --- 2. 檢查結束條件 ---
         // 條件 a: 玩家死亡 (敵人獲勝)
         if (player_HP != null && player_HP.IsDead())
         {
@@ -281,8 +299,7 @@ public class Enemy_Agent : Agent
             return;
         }
 
-        // --- 3. 執行原有的移動邏輯 ---
-        if (curState != EnemyState.Recovery && curState != EnemyState.Defending)
+        if (curState != EnemyState.StartUp && curState != EnemyState.Defending)
         {
             if (moveDirection != Vector3.zero)
             {
@@ -292,50 +309,71 @@ public class Enemy_Agent : Agent
         }
     }
 
-    IEnumerator Attack(AttackData attackData)
+    IEnumerator Attack(ComboData combo)
     {
-        attackRange_enemy.ChangeRange(attackData);
-        player_Behavior.ChangeDistanceToEnemy(attackData.attackRange);
+        Debug.Log($"Start Attack : {combo.comboName}");
 
-        float time = 0f;
-        curState = EnemyState.StartUp;
-        Color targetColor = Color.red;
-        while (time < attackData.startUpTime)
+        foreach (AttackData step in combo.attackSteps)
         {
-            time += Time.deltaTime;
-            float t = time / attackData.startUpTime;
-            mat.color = Color.Lerp(oriColor, targetColor, t);
-            yield return null;
-        }
+            attackRange_enemy.UpdateAttackShape(step);
+            player_Behavior.ChangeDistanceToEnemy(step.attackRange * 1.2f);
+            attackRange = step.attackRange;
 
-        mat.color = targetColor;
-
-        bool isInRange = attackRange_enemy.IsInRange();
-        if (isInRange)
-        {
-            if (player_HP != null)
+            float time = 0f;
+            curState = EnemyState.StartUp;
+            Vector3 startPosition = transform.position;
+            Vector3 endPosition = startPosition + enemyObj.forward * step.forwardMovement;
+            Color targetColor = Color.red;
+            while (time < step.startupTime)
             {
-                if (player_Behavior.GetCurrentState() == Player_Behavior.PlayerState.Defending)
+                time += Time.deltaTime;
+                float t = time / step.startupTime;
+                float movementProgress = step.movementCurve.Evaluate(t);
+                rb.MovePosition(Vector3.Lerp(startPosition, endPosition, movementProgress));
+
+                mat.color = Color.Lerp(oriColor, targetColor, t);
+                yield return null;
+            }
+            Vector3 directionToPlayer = playerTransform.position - transform.position;
+            directionToPlayer.y = 0;
+            Vector3 enemyForward = enemyObj.forward;
+            enemyForward.y = 0;
+            float angle = Vector3.Angle(enemyForward.normalized, directionToPlayer.normalized);
+
+            mat.color = targetColor;
+
+            bool isInRange = attackRange_enemy.IsPlayerInRange();
+            if (isInRange)
+            {
+                if (player_HP != null)
                 {
-                    player_HP.Hurt(attackData.damage / 10);
-                }
-                else
-                {
-                    player_HP.Hurt(attackData.damage);
+                    if (player_Behavior.GetCurrentState() == Player_Behavior.PlayerState.Defending)
+                    {
+                        player_HP.Hurt(step.damage / 10);
+                    }
+                    else
+                    {
+                        player_HP.Hurt(step.damage);
+                    }
                 }
             }
-        }
-        else
-        {
-            AddReward(-0.2f);
+            else
+            {
+                if (angle > step.attackAngle / 2)
+                {
+                    AddReward(-0.2f);
+                }
+                AddReward(-0.05f);
+            }
+
+            curState = EnemyState.Recovery;
+            mat.color = Color.green;
+            yield return new WaitForSeconds(step.recoveryTime);
+
+            mat.color = oriColor;
+            curState = EnemyState.Idle;
         }
 
-        curState = EnemyState.Recovery;
-        mat.color = Color.green;
-        yield return new WaitForSeconds(attackData.recoveryTime);
-
-        mat.color = oriColor;
-        curState = EnemyState.Idle;
     }
 
     // 用於手動測試，確保動作設定正確
@@ -345,14 +383,31 @@ public class Enemy_Agent : Agent
         discreteActions.Clear();
 
         // 手動控制移動
-        int moveAction = 0; // 0:不動
+        int moveAction = 0;
         if (Input.GetKey(KeyCode.UpArrow)) moveAction = 1;
         if (Input.GetKey(KeyCode.DownArrow)) moveAction = 2;
         if (Input.GetKey(KeyCode.LeftArrow)) moveAction = 3;
         if (Input.GetKey(KeyCode.RightArrow)) moveAction = 4;
 
         // 手動控制攻擊
-        int attackAction = Input.GetKey(KeyCode.F1) ? 1 : 0;
+        int attackAction = 0;
+        if (comboPatterns != null && comboPatterns.Length > 0)
+        {
+            if (Input.GetKey(KeyCode.Alpha1))
+            {
+                attackAction = 1;
+            }
+
+            if (comboPatterns.Length > 1 && Input.GetKey(KeyCode.Alpha2))
+            {
+                attackAction = 2;
+            }
+
+            if (comboPatterns.Length > 2 && Input.GetKey(KeyCode.Alpha3))
+            {
+                attackAction = 3;
+            }
+        }
 
         // 手動控制防禦
         // int defendAction = Input.GetKey(KeyCode.F2) ? 1 : 0;
@@ -388,4 +443,5 @@ public class Enemy_Agent : Agent
     {
         AddReward(0.1f);
     }
+
 }

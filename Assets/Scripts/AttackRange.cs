@@ -1,49 +1,112 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class AttackRange : MonoBehaviour
 {
-    public float radius = 1.5f;
-    private List<GameObject> enemiesInRange = new List<GameObject>();
-    void Start()
-    {
-        GetComponent<SphereCollider>().radius = radius;
-    }
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, radius);
-    }
+    [Header("Attack Shape Settings")]
+    [Tooltip("攻擊的距離")]
+    public float radius = 2.0f;
+    [Tooltip("攻擊的角度")]
+    [Range(0, 360)]
+    public float angle = 90.0f;
 
-    void OnTriggerEnter(Collider other)
+    private SphereCollider detectionCollider;
+
+    void Awake()
     {
-        if (other.CompareTag("Enemy"))
+        detectionCollider = GetComponent<SphereCollider>();
+        if (detectionCollider == null)
         {
-            if (!enemiesInRange.Contains(other.gameObject))
-                enemiesInRange.Add(other.gameObject);
+            detectionCollider = gameObject.AddComponent<SphereCollider>();
         }
+        detectionCollider.isTrigger = true;
+        detectionCollider.radius = radius;
     }
-
-    void OnTriggerExit(Collider other)
+    
+    private void OnValidate()
     {
-        if (other.CompareTag("Enemy"))
+        if (detectionCollider == null)
         {
-            if (enemiesInRange.Contains(other.gameObject))
-                enemiesInRange.Remove(other.gameObject);
+            detectionCollider = GetComponent<SphereCollider>();
+        }
+        if (detectionCollider != null)
+        {
+            detectionCollider.radius = radius;
         }
     }
 
     public bool IsEnemyInRange()
     {
-        return enemiesInRange.Count > 0;
+        return FindEnemiesInFanRange().Count > 0;
     }
 
     public GameObject[] GetEnemyInRange()
     {
-        return enemiesInRange.ToArray();
+        return FindEnemiesInFanRange().ToArray();
     }
+    
     public bool IsSpecificEnemyInRange(GameObject enemyToCheck)
     {
-        return enemiesInRange.Contains(enemyToCheck);
+        if (enemyToCheck == null) return false;
+
+        if (Vector3.Distance(transform.position, enemyToCheck.transform.position) > radius)
+        {
+            return false;
+        }
+
+        Vector3 directionToEnemy = (enemyToCheck.transform.position - transform.position).normalized;
+        
+        Vector3 playerForward = transform.parent != null ? transform.parent.forward : transform.forward;
+        
+        if (Vector3.Angle(playerForward, directionToEnemy) < angle / 2)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private List<GameObject> FindEnemiesInFanRange()
+    {
+        List<GameObject> enemiesInFan = new List<GameObject>();
+        
+        Collider[] collidersInRange = Physics.OverlapSphere(transform.position, radius);
+
+        foreach (Collider col in collidersInRange)
+        {
+            if (col.CompareTag("Enemy"))
+            {
+                Vector3 directionToEnemy = (col.transform.position - transform.position).normalized;
+                
+                Vector3 playerForward = transform.parent != null ? transform.parent.forward : transform.forward;
+
+                if (Vector3.Angle(playerForward, directionToEnemy) < angle / 2)
+                {
+                    enemiesInFan.Add(col.gameObject);
+                }
+            }
+        }
+        return enemiesInFan;
+    }
+
+    // 視覺化 Gizmo
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(0, 1, 0, 0.5f);
+        Vector3 forward = transform.parent != null ? transform.parent.forward : transform.forward;
+
+        Quaternion leftRayRotation = Quaternion.AngleAxis(-angle / 2, Vector3.up);
+        Quaternion rightRayRotation = Quaternion.AngleAxis(angle / 2, Vector3.up);
+        Vector3 leftRayDirection = leftRayRotation * forward;
+        Vector3 rightRayDirection = rightRayRotation * forward;
+
+        Gizmos.DrawRay(transform.position, leftRayDirection * radius);
+        Gizmos.DrawRay(transform.position, rightRayDirection * radius);
+
+#if UNITY_EDITOR
+        UnityEditor.Handles.color = new Color(0, 1, 0, 0.1f);
+        UnityEditor.Handles.DrawSolidArc(transform.position, Vector3.up, leftRayDirection, angle, radius);
+#endif
     }
 }
