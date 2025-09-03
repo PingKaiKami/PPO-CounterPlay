@@ -18,6 +18,7 @@ public class Arrow : MonoBehaviour
         }
         else
         {
+            // player_Behavior.enemy.GetComponent<Enemy_Agent>().OnPlayerLongAttackMissed();
             Destroy(gameObject);
         }
     }
@@ -39,8 +40,7 @@ public class Arrow : MonoBehaviour
         }
         else
         {
-            Debug.Log(other.name);
-            player_Behavior.enemy.GetComponent<Enemy_Agent>().OnPlayerAttackMissed();
+            // player_Behavior.enemy.GetComponent<Enemy_Agent>().OnPlayerLongAttackMissed();
             Destroy(gameObject);
         }
     }

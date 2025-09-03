@@ -4,6 +4,7 @@ using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 using System.Collections;
 using Unity.MLAgents.Policies;
+using System.Collections.Generic;
 
 public class Enemy_Agent : Agent
 {
@@ -225,6 +226,7 @@ public class Enemy_Agent : Agent
         distanceScore = Mathf.Clamp01(distanceScore);
 
         float reward = distanceScore * maxDistanceReward;
+        Debug.Log("distanceReward : " + reward);
         AddReward(reward);
 
         // 面對方向Reward
@@ -236,6 +238,7 @@ public class Enemy_Agent : Agent
         if (alignment > 0)
         {
             float aimingReward = alignment * (1.0f / (1.0f + distanceToPlayer));
+            Debug.Log("aimingReward : " + aimingReward * 0.005f);
             AddReward(aimingReward * 0.005f);
         }
         else
@@ -243,9 +246,67 @@ public class Enemy_Agent : Agent
             AddReward(-0.005f);
         }
 
+        // 閃避長距離攻擊Reward
+        List<GameObject> nearbyProjectiles = GetNearbyProjectiles(10f);
+        if (nearbyProjectiles.Count > 0)
+        {
+            float dangerScore = 0f;
+
+            Vector3 myIntendedVelocity = moveDirection.normalized * moveSpeed;
+            // ===========================================
+
+            foreach (var projectile in nearbyProjectiles)
+            {
+                Rigidbody projectileRb = projectile.GetComponent<Rigidbody>();
+                if (projectileRb == null) continue;
+
+                Vector3 projectileVel = projectileRb.velocity;
+                Vector3 toMe = transform.position - projectile.transform.position;
+
+                if (Vector3.Dot(projectileVel.normalized, toMe.normalized) > 0.9f)
+                {
+                    // 使用 myIntendedVelocity 來計算躲避得分
+                    float escapeScore;
+
+                    if (myIntendedVelocity.sqrMagnitude < 0.01f)
+                    {
+                        escapeScore = 0f;
+                    }
+                    else
+                    {
+                        float dotMyVelToProjectileVel = Vector3.Dot(myIntendedVelocity.normalized, projectileVel.normalized);
+                        escapeScore = 1.0f - Mathf.Abs(dotMyVelToProjectileVel);
+                    }
+                    dangerScore += escapeScore * (1.0f / (1.0f + toMe.magnitude));
+                }
+            }
+            if (dangerScore > 0)
+            {
+                Debug.Log("dangerScore : " + dangerScore * 0.1f);
+                AddReward(dangerScore * 0.1f);
+            }
+            else
+            {
+                AddReward(-0.005f);
+            }
+        }
+
         AddReward(-0.0001f);
     }
 
+    private List<GameObject> GetNearbyProjectiles(float radius)
+    {
+        List<GameObject> projectiles = new List<GameObject>();
+        Collider[] hits = Physics.OverlapSphere(transform.position, radius);
+        foreach (var hit in hits)
+        {
+            if (hit.CompareTag("Projectile"))
+            {
+                projectiles.Add(hit.gameObject);
+            }
+        }
+        return projectiles;
+    }
     private void UpdateMoveDirection(int moveAction)
     {
         Vector3 moveInput = Vector3.zero;
@@ -443,5 +504,8 @@ public class Enemy_Agent : Agent
     {
         AddReward(0.1f);
     }
-
+    public void OnPlayerLongAttackMissed()
+    {
+        AddReward(0.5f);
+    }
 }

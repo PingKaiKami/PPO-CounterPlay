@@ -2,58 +2,40 @@
     "EnemyAI": {
         "checkpoints": [
             {
-                "steps": 499979,
-                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-499979.onnx",
-                "reward": -1.9352702998245757,
-                "creation_time": 1753939245.773049,
+                "steps": 499970,
+                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-499970.onnx",
+                "reward": -0.8349510818719864,
+                "creation_time": 1754297525.7517986,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-499979.pt"
+                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-499970.pt"
                 ]
             },
             {
-                "steps": 999929,
-                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-999929.onnx",
-                "reward": -1.6466194411367179,
-                "creation_time": 1753941414.6286073,
+                "steps": 999920,
+                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-999920.onnx",
+                "reward": -0.7363110874325801,
+                "creation_time": 1754298102.8676755,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-999929.pt"
+                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-999920.pt"
                 ]
             },
             {
-                "steps": 1499928,
-                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1499928.onnx",
-                "reward": -0.9685637354850769,
-                "creation_time": 1753943455.2681105,
+                "steps": 1000002,
+                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1000002.onnx",
+                "reward": -0.7416990706814995,
+                "creation_time": 1754298102.9169176,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1499928.pt"
-                ]
-            },
-            {
-                "steps": 1999925,
-                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1999925.onnx",
-                "reward": -1.792308778860248,
-                "creation_time": 1753945462.515546,
-                "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1999925.pt"
-                ]
-            },
-            {
-                "steps": 2000013,
-                "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-2000013.onnx",
-                "reward": -1.7862005604963218,
-                "creation_time": 1753945462.580547,
-                "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-2000013.pt"
+                    "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1000002.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 2000013,
+            "steps": 1000002,
             "file_path": "results\\EnemyAI_Build_Run_20\\EnemyAI.onnx",
-            "reward": -1.7862005604963218,
-            "creation_time": 1753945462.580547,
+            "reward": -0.7416990706814995,
+            "creation_time": 1754298102.9169176,
             "auxillary_file_paths": [
-                "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-2000013.pt"
+                "results\\EnemyAI_Build_Run_20\\EnemyAI\\EnemyAI-1000002.pt"
             ]
         }
     },
