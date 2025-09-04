@@ -141,7 +141,7 @@ public class Enemy_Agent : Agent
         float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
         sensor.AddObservation(alignment);
 
-        // 4. 距離(1 個值)
+        // 4. 自己到玩家的距離(1 個值)
         sensor.AddObservation(toPlayer.magnitude);
 
         // 5. 玩家速度向量 (3 個值)

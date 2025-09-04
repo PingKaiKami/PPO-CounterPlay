@@ -35,32 +35,32 @@ public class Player_Behavior : MonoBehaviour
     public Transform orientation;
 
     [Header("Movement & Dash")]
-    public float moveSpeed = 3f;
-    public float rotationSpeed = 3f;
+    public float moveSpeed = 5f;
+    public float rotationSpeed = 10f;
     public float dashSpeed = 30f;
-    public float dashDuration = 0.2f;
+    public float dashDuration = 0.1f;
     public float dashCooldown = 1f;
 
     [Header("Attack")]
-    public int damage = 10;
-    public float attackBufferRange = 0.2f; // 預輸入距離(因為攻擊有延遲)
+    public int damage = 15;
+    public float attackBufferRange = 0.5f; // 預輸入距離(因為攻擊有延遲)
     public float attackStartUpTime = 0.5f;
     public float attackRecoveryTime = 1f;
 
     [Header("LongAttack")]
     public GameObject arrow;
     public int longAttackDamage = 20;
-    public float longAttackStartUpTime;
-    public float longAttackRecoveryTime;
-    public float longAttackRange;
-    public float arrowSpeed;
+    public float longAttackStartUpTime = 3f;
+    public float longAttackRecoveryTime = 1f;
+    public float longAttackRange = 5f;
+    public float arrowSpeed = 1f;
 
     [Header("AI Decision Making")]
     [Tooltip("左右橫移的速度")]
     public float strafeSpeed = 1.5f;
     [Tooltip("每隔多少秒改變一次橫移方向")]
     public float strafeDirectionChangeInterval = 2.0f;
-    public float waitingPossibility = 0.9f;
+    public float waitingPossibility = 0.99f;
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;

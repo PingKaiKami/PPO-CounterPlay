@@ -2,58 +2,58 @@
     "EnemyAI": {
         "checkpoints": [
             {
-                "steps": 499942,
-                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-499942.onnx",
-                "reward": -0.8225264847278595,
-                "creation_time": 1756879810.188787,
+                "steps": 499900,
+                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-499900.onnx",
+                "reward": -0.9266929592405047,
+                "creation_time": 1756893387.1019368,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-499942.pt"
+                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-499900.pt"
                 ]
             },
             {
-                "steps": 999901,
-                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-999901.onnx",
-                "reward": -0.6867846741836954,
-                "creation_time": 1756880770.6609037,
+                "steps": 999912,
+                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-999912.onnx",
+                "reward": -0.8311928075551986,
+                "creation_time": 1756895842.930794,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-999901.pt"
+                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-999912.pt"
                 ]
             },
             {
-                "steps": 1499910,
-                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1499910.onnx",
-                "reward": -0.719519738640104,
-                "creation_time": 1756881738.4107323,
+                "steps": 1499979,
+                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1499979.onnx",
+                "reward": -0.8979959189891815,
+                "creation_time": 1756898301.8438935,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1499910.pt"
+                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1499979.pt"
                 ]
             },
             {
-                "steps": 1999900,
-                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1999900.onnx",
-                "reward": -0.5082323499023914,
-                "creation_time": 1756882931.962229,
+                "steps": 1999991,
+                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1999991.onnx",
+                "reward": -0.8371721093737802,
+                "creation_time": 1756899180.4076002,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1999900.pt"
+                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-1999991.pt"
                 ]
             },
             {
-                "steps": 2000028,
-                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2000028.onnx",
-                "reward": -0.5082323499023914,
-                "creation_time": 1756882932.028417,
+                "steps": 2095483,
+                "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2095483.onnx",
+                "reward": null,
+                "creation_time": 1756899296.7853417,
                 "auxillary_file_paths": [
-                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2000028.pt"
+                    "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2095483.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 2000028,
+            "steps": 2095483,
             "file_path": "results\\EnemyAI_Build_Run_24\\EnemyAI.onnx",
-            "reward": -0.5082323499023914,
-            "creation_time": 1756882932.028417,
+            "reward": null,
+            "creation_time": 1756899296.7853417,
             "auxillary_file_paths": [
-                "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2000028.pt"
+                "results\\EnemyAI_Build_Run_24\\EnemyAI\\EnemyAI-2095483.pt"
             ]
         }
     },

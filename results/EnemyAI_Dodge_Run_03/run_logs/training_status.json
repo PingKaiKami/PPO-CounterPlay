@@ -1,0 +1,65 @@
+{
+    "EnemyAI": {
+        "checkpoints": [
+            {
+                "steps": 1999987,
+                "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-1999987.onnx",
+                "reward": 4.565500240772963,
+                "creation_time": 1756964088.6564019,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-1999987.pt"
+                ]
+            },
+            {
+                "steps": 2000115,
+                "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2000115.onnx",
+                "reward": 4.565500240772963,
+                "creation_time": 1756964088.8768055,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2000115.pt"
+                ]
+            },
+            {
+                "steps": 2499988,
+                "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2499988.onnx",
+                "reward": 4.666333571076393,
+                "creation_time": 1756965393.329323,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2499988.pt"
+                ]
+            },
+            {
+                "steps": 2999886,
+                "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2999886.onnx",
+                "reward": 4.6477502435445786,
+                "creation_time": 1756966001.8684707,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-2999886.pt"
+                ]
+            },
+            {
+                "steps": 3000270,
+                "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-3000270.onnx",
+                "reward": 4.6477502435445786,
+                "creation_time": 1756966001.9443126,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-3000270.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3000270,
+            "file_path": "results\\EnemyAI_Dodge_Run_03\\EnemyAI.onnx",
+            "reward": 4.6477502435445786,
+            "creation_time": 1756966001.9443126,
+            "auxillary_file_paths": [
+                "results\\EnemyAI_Dodge_Run_03\\EnemyAI\\EnemyAI-3000270.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}
