@@ -1,0 +1,47 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1757343707",
+        "python_version": "3.8.20 (default, Oct  3 2024, 15:19:54) [MSC v.1929 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\User\\anaconda3\\envs\\mlagents_env\\Scripts\\mlagents-learn config/enemy_mul_trainer_config.yaml --run-id=EnemyAI_Combat_Master_Run_04 --env=./Build/MultipleTraining/AI_Enemy.exe --num-envs=4 --initialize-from=EnemyAI_Dodge_Run_03 --force",
+        "mlagents_version": "0.28.0",
+        "mlagents_envs_version": "0.28.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.4.1+cu118",
+        "numpy_version": "1.21.6",
+        "end_time_seconds": "1757343711"
+    },
+    "total": 4.5574294,
+    "count": 1,
+    "self": 0.009444700000000417,
+    "children": {
+        "run_training.setup": {
+            "total": 0.24571469999999995,
+            "count": 1,
+            "self": 0.24571469999999995
+        },
+        "TrainerController.start_learning": {
+            "total": 4.30227,
+            "count": 1,
+            "self": 0.0003285999999995681,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 4.3019299,
+                    "count": 1,
+                    "self": 4.3019299
+                },
+                "trainer_threads": {
+                    "total": 1.000000000139778e-06,
+                    "count": 1,
+                    "self": 1.000000000139778e-06
+                },
+                "TrainerController._save_models": {
+                    "total": 1.0500000000135401e-05,
+                    "count": 1,
+                    "self": 1.0500000000135401e-05
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,65 @@
+{
+    "EnemyAI": {
+        "checkpoints": [
+            {
+                "steps": 3499890,
+                "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-3499890.onnx",
+                "reward": -2.622264306578371,
+                "creation_time": 1758029907.608629,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-3499890.pt"
+                ]
+            },
+            {
+                "steps": 3999964,
+                "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-3999964.onnx",
+                "reward": -2.1569132793694736,
+                "creation_time": 1758030735.4815722,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-3999964.pt"
+                ]
+            },
+            {
+                "steps": 4499877,
+                "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-4499877.onnx",
+                "reward": -2.475762340705842,
+                "creation_time": 1758031544.121932,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-4499877.pt"
+                ]
+            },
+            {
+                "steps": 4999965,
+                "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-4999965.onnx",
+                "reward": -2.275971531354148,
+                "creation_time": 1758032349.5027068,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-4999965.pt"
+                ]
+            },
+            {
+                "steps": 5000093,
+                "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-5000093.onnx",
+                "reward": -2.275971531354148,
+                "creation_time": 1758032349.571583,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-5000093.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 5000093,
+            "file_path": "results\\EnemyAI_Attack_Run_13\\EnemyAI.onnx",
+            "reward": -2.275971531354148,
+            "creation_time": 1758032349.571583,
+            "auxillary_file_paths": [
+                "results\\EnemyAI_Attack_Run_13\\EnemyAI\\EnemyAI-5000093.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}

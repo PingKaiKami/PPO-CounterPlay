@@ -5,7 +5,7 @@ using Unity.MLAgents.Actuators;
 using System.Collections;
 using Unity.MLAgents.Policies;
 using System.Collections.Generic;
-
+using Unity.MLAgents.Integrations.Match3;
 public class Enemy_Agent : Agent
 {
     public enum EnemyState
@@ -27,6 +27,10 @@ public class Enemy_Agent : Agent
     // --- ML-Agents & 遊戲邏輯相關變數 ---
     public Transform playerTransform;
     public float maxEpisodeTime = 60f;
+
+    [Header("Debug")]
+    public bool printReward = false;
+    public bool printState = false;
     private float episodeTimer;
     private HP player_HP;
     private HP enemy_HP;
@@ -124,22 +128,12 @@ public class Enemy_Agent : Agent
     // 收集觀測資訊
     public override void CollectObservations(VectorSensor sensor)
     {
-        if (playerTransform == null || player_Behavior == null)
-        {
-            for (int i = 0; i < 13; i++) sensor.AddObservation(0f);
-            return;
-        }
-
         // 1. 自己的面對方向 (3 個值)
         sensor.AddObservation(enemyObj.forward.normalized);
 
         // 2. 自己到玩家的方向向量 (3 個值)
         Vector3 toPlayer = playerTransform.position - transform.position;
         sensor.AddObservation(toPlayer.normalized);
-
-        // 3. 自己是否正對著玩家 (1 個值)
-        float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
-        sensor.AddObservation(alignment);
 
         // 4. 自己到玩家的距離(1 個值)
         sensor.AddObservation(toPlayer.magnitude);
@@ -149,14 +143,16 @@ public class Enemy_Agent : Agent
         Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
         sensor.AddObservation(playerRb != null ? playerRb.velocity : Vector3.zero);
 
-        // 6. 玩家的詳細狀態 (PlayerState) (1 個值)
+        // 6. 玩家面對方向 (3 個值)
+        sensor.AddObservation(playerTransform.forward.normalized);
+
+        // 7. 玩家的詳細狀態 (PlayerState) (1 個值)
         // 將 enum 轉換為整數，讓 AI 學習
         sensor.AddObservation((int)player_Behavior.GetCurrentState());
 
-        // 7. 自己的狀態 (EnemyState) (1 個值)
+        // 8. 自己的狀態 (EnemyState) (1 個值)
         sensor.AddObservation((int)curState);
     }
-
     // 接收來自神經網路的動作指令
     public override void OnActionReceived(ActionBuffers actions)
     {
@@ -205,107 +201,87 @@ public class Enemy_Agent : Agent
             }
         }
         // 距離Reward
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+        // float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
-        float minDistance = 1;
-        float maxDistance = attackRange;
-        float bestDistance = Mathf.Max(attackRange - 0.5f, minDistance);
-        float maxDistanceReward = 0.001f;
+        // float minDistance = 1;
+        // float maxDistance = attackRange;
+        // float bestDistance = Mathf.Max(attackRange - 0.5f, minDistance);
+        // float maxDistanceReward = 0.001f;
 
-        float distanceScore;
+        // float distanceScore;
 
-        if (distanceToPlayer >= bestDistance)
-        {
-            distanceScore = Mathf.InverseLerp(maxDistance, bestDistance, distanceToPlayer);
-        }
-        else
-        {
-            distanceScore = Mathf.InverseLerp(minDistance, bestDistance, distanceToPlayer);
-        }
+        // if (distanceToPlayer >= bestDistance)
+        // {
+        //     distanceScore = Mathf.InverseLerp(maxDistance, bestDistance, distanceToPlayer);
+        // }
+        // else
+        // {
+        //     distanceScore = Mathf.InverseLerp(minDistance, bestDistance, distanceToPlayer);
+        // }
 
-        distanceScore = Mathf.Clamp01(distanceScore);
+        // distanceScore = Mathf.Clamp01(distanceScore);
 
-        float reward = distanceScore * maxDistanceReward;
-        Debug.Log("distanceReward : " + reward);
-        AddReward(reward);
+        // float reward = distanceScore * maxDistanceReward;
+        // if (printState)
+        // {
+        //     Debug.Log("distanceReward : " + reward);    
+        // }
+
+        // AddReward(reward);
 
         // 面對方向Reward
-        Vector3 toPlayer = playerTransform.position - transform.position;
-        toPlayer.y = 0;
+        // Vector3 toPlayer = playerTransform.position - transform.position;
+        // toPlayer.y = 0;
 
-        float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
+        // float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
 
-        if (alignment > 0)
-        {
-            float aimingReward = alignment * (1.0f / (1.0f + distanceToPlayer));
-            Debug.Log("aimingReward : " + aimingReward * 0.005f);
-            AddReward(aimingReward * 0.005f);
-        }
-        else
-        {
-            AddReward(-0.005f);
-        }
+        // if (alignment > 0)
+        // {
+        //     float aimingReward = alignment * (1.0f / (1.0f + distanceToPlayer));
+        //     if (printState)
+        //     {
+        //         Debug.Log("aimingReward : " + aimingReward * 0.005f);    
+        //     }
+        //     AddReward(aimingReward * 0.005f);
+        // }
+        // else
+        // {
+        //     AddReward(-0.005f);
+        // }
 
         // 閃避長距離攻擊Reward
-        List<GameObject> nearbyProjectiles = GetNearbyProjectiles(10f);
-        if (nearbyProjectiles.Count > 0)
+        if (player_Behavior.IsAimming())
         {
-            float dangerScore = 0f;
+            Vector3 playerPosition = playerTransform.position;
+            Vector3 playerForward = playerTransform.forward;
 
-            Vector3 myIntendedVelocity = moveDirection.normalized * moveSpeed;
-            // ===========================================
+            RaycastHit hit;
+            float raycastDistance = 15f;
 
-            foreach (var projectile in nearbyProjectiles)
+            if (Physics.Raycast(playerPosition, playerForward, out hit, raycastDistance, -1, QueryTriggerInteraction.Ignore))
             {
-                Rigidbody projectileRb = projectile.GetComponent<Rigidbody>();
-                if (projectileRb == null) continue;
-
-                Vector3 projectileVel = projectileRb.velocity;
-                Vector3 toMe = transform.position - projectile.transform.position;
-
-                if (Vector3.Dot(projectileVel.normalized, toMe.normalized) > 0.9f)
+                if (hit.collider.CompareTag("Enemy"))
                 {
-                    // 使用 myIntendedVelocity 來計算躲避得分
-                    float escapeScore;
+                    // 是的，玩家的瞄准线直直地指向了我！
+                    // 这是一个非常危险的站位。
 
-                    if (myIntendedVelocity.sqrMagnitude < 0.01f)
-                    {
-                        escapeScore = 0f;
-                    }
-                    else
-                    {
-                        float dotMyVelToProjectileVel = Vector3.Dot(myIntendedVelocity.normalized, projectileVel.normalized);
-                        escapeScore = 1.0f - Mathf.Abs(dotMyVelToProjectileVel);
-                    }
-                    dangerScore += escapeScore * (1.0f / (1.0f + toMe.magnitude));
+                    // 6. 施加一个持续的负面惩罚
+                    //    惩罚的力度可以根据距离进行调整：离得越近，惩罚越大
+                    float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
+                    float penalty = -(1.0f / (1.0f + distanceToPlayer)) * 0.05f; // 乘以一个系数来控制大小
+
+                    AddReward(penalty);
+                    // Debug.Log($"PENALIZED for being in player's line of fire! Penalty: {penalty}");
+                }
+                else
+                {
+                    AddReward(0.005f);
                 }
             }
-            if (dangerScore > 0)
-            {
-                Debug.Log("dangerScore : " + dangerScore * 0.1f);
-                AddReward(dangerScore * 0.1f);
-            }
-            else
-            {
-                AddReward(-0.005f);
-            }
+            // 可选：在 Scene 视图中将这条射线画出来，方便除错
+            Debug.DrawRay(playerPosition, playerForward * raycastDistance, Color.yellow);
         }
-
-        AddReward(-0.0001f);
-    }
-
-    private List<GameObject> GetNearbyProjectiles(float radius)
-    {
-        List<GameObject> projectiles = new List<GameObject>();
-        Collider[] hits = Physics.OverlapSphere(transform.position, radius);
-        foreach (var hit in hits)
-        {
-            if (hit.CompareTag("Projectile"))
-            {
-                projectiles.Add(hit.gameObject);
-            }
-        }
-        return projectiles;
+        AddReward(0.0005f);
     }
     private void UpdateMoveDirection(int moveAction)
     {
@@ -335,9 +311,16 @@ public class Enemy_Agent : Agent
         if (player_HP != null && player_HP.IsDead())
         {
             float timeBonus = (maxEpisodeTime - episodeTimer) / maxEpisodeTime;
-            AddReward(timeBonus * 2.0f);
+            AddReward(timeBonus * 0.5f);
+            if (enemy_HP.CurrentHP == 100)
+            {
+                AddReward(1);
+            }
             SetReward(1);
-            Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
+            if (printReward)
+            {
+                Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
+            }
             EndEpisode();
             return;
         }
@@ -345,8 +328,11 @@ public class Enemy_Agent : Agent
         // 條件 b: 敵人自己死亡 (敵人失敗)
         if (enemy_HP != null && enemy_HP.IsDead())
         {
-            SetReward(-0.5f);
-            Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");
+            SetReward(-1);
+            if (printReward)
+            {
+                Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
+            }
             EndEpisode();
             return;
         }
@@ -354,8 +340,22 @@ public class Enemy_Agent : Agent
         // 條件 c: 時間到 (平手或未完成)
         if (episodeTimer >= maxEpisodeTime)
         {
-            SetReward(-1);
-            Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");
+            SetReward(-2);
+            if (printReward)
+            {
+                Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
+            }
+            EndEpisode();
+            return;
+        }
+
+        if (playerTransform.position.y < -5)
+        {
+            SetReward(0f);
+            if (printReward)
+            {
+                Debug.Log($"Episode End: Player fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
+            }
             EndEpisode();
             return;
         }
@@ -372,7 +372,10 @@ public class Enemy_Agent : Agent
 
     IEnumerator Attack(ComboData combo)
     {
-        Debug.Log($"Start Attack : {combo.comboName}");
+        if (printState)
+        {
+            Debug.Log($"Start Attack : {combo.comboName}");    
+        }
 
         foreach (AttackData step in combo.attackSteps)
         {
@@ -410,11 +413,11 @@ public class Enemy_Agent : Agent
                 {
                     if (player_Behavior.GetCurrentState() == Player_Behavior.PlayerState.Defending)
                     {
-                        player_HP.Hurt(step.damage / 10);
+                        player_HP.HurtFromMelee(step.damage / 10);
                     }
                     else
                     {
-                        player_HP.Hurt(step.damage);
+                        player_HP.HurtFromMelee(step.damage);
                     }
                 }
             }
@@ -454,19 +457,25 @@ public class Enemy_Agent : Agent
         int attackAction = 0;
         if (comboPatterns != null && comboPatterns.Length > 0)
         {
+            // normal attack
             if (Input.GetKey(KeyCode.Alpha1))
             {
                 attackAction = 1;
             }
-
+            // triple attack
             if (comboPatterns.Length > 1 && Input.GetKey(KeyCode.Alpha2))
             {
                 attackAction = 2;
             }
-
+            // strong attack
             if (comboPatterns.Length > 2 && Input.GetKey(KeyCode.Alpha3))
             {
                 attackAction = 3;
+            }
+            // fast attack
+            if (comboPatterns.Length > 3 && Input.GetKey(KeyCode.Alpha4))
+            {
+                attackAction = 4;
             }
         }
 
@@ -494,18 +503,34 @@ public class Enemy_Agent : Agent
         // {
         //     AddReward(reward);
         // }
-        AddReward(damageDealt / 100.0f);
+        if (printReward)
+        {
+            Debug.Log($"AttackReward : {damageDealt / 500.0f}");
+        }
+        AddReward(damageDealt / 500.0f);
     }
-    public void OnDamageTaken(int damageTaken)
+    public void OnDamageTakenFromMelee(int damageTaken)
     {
-        AddReward(-damageTaken / 200.0f);
+        AddReward(-damageTaken / 500.0f);
+    }
+    public void OnDamageTakenFromRanged(int damageTaken)
+    {
+        if (printReward)
+        {
+            Debug.Log($"PlayerLongAttackReward : {-damageTaken / 100.0f}");
+        }
+        AddReward(-damageTaken / 100.0f);
     }
     public void OnPlayerAttackMissed()
     {
-        AddReward(0.1f);
+        // AddReward(0.1f);
     }
     public void OnPlayerLongAttackMissed()
     {
-        AddReward(0.5f);
+        if (printReward)
+        {
+            Debug.Log("PlayerLongAttackMissReward : 0.1");
+        }
+        AddReward(0.1f);
     }
 }

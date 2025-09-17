@@ -2,12 +2,19 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
-using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(HP))]
 public class Enemy_Dodge_Agent : Agent
 {
+    public enum EnemyState
+    {
+        Idle,
+        StartUp,
+        Recovery,
+        Defending
+    }
+    public EnemyState curState = EnemyState.Idle;
     [Header("Movement Settings")]
     public Transform enemyObj;
     public Transform orientation; 
@@ -15,6 +22,7 @@ public class Enemy_Dodge_Agent : Agent
     public float moveSpeed = 5f;
     public float rotationSpeed = 10f;
 
+    private Player_Behavior_Dodge pbd;
     private HP enemy_HP;
     private Vector3 moveDirection;
     public override void Initialize()
@@ -25,6 +33,7 @@ public class Enemy_Dodge_Agent : Agent
     void Start()
     {
         enemy_HP = GetComponent<HP>();
+        pbd = playerTransform.GetComponent<Player_Behavior_Dodge>();
     }
 
     public override void OnEpisodeBegin()
@@ -43,8 +52,34 @@ public class Enemy_Dodge_Agent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        sensor.AddObservation(moveDirection.normalized);
-        sensor.AddObservation(enemyObj.forward);
+        // 1. 自己的面對方向 (3 個值)
+        sensor.AddObservation(enemyObj.forward.normalized);
+
+        // 2. 自己到玩家的方向向量 (3 個值)
+        Vector3 toPlayer = playerTransform.position - transform.position;
+        sensor.AddObservation(toPlayer.normalized);
+
+        // 3. 自己是否正對著玩家 (1 個值)
+        float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
+        sensor.AddObservation(alignment);
+
+        // 4. 自己到玩家的距離(1 個值)
+        sensor.AddObservation(toPlayer.magnitude);
+
+        // 5. 玩家速度向量 (3 個值)
+        // 確保 rigidbody 不是 null
+        Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
+        sensor.AddObservation(playerRb != null ? playerRb.velocity : Vector3.zero);
+
+        // 6. 玩家面對方向 (3 個值)
+        sensor.AddObservation(playerTransform.forward.normalized);
+
+        // 7. 玩家的詳細狀態 (PlayerState) (1 個值)
+        // 將 enum 轉換為整數，讓 AI 學習
+        sensor.AddObservation((int)pbd.GetCurrentState());
+        
+        // 8. 自己的狀態 (EnemyState) (1 個值)
+        sensor.AddObservation((int)curState);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -62,9 +97,12 @@ public class Enemy_Dodge_Agent : Agent
         AddReward(0.001f);
     }
     
-    public void OnDamageTaken(int damageTaken)
+    public void OnDamageTakenFromMelee(int damageTaken)
     {
-        // 被命中是一个明确的负面事件，给予一个显著的惩罚。
+        AddReward(-0.2f);
+    }
+    public void OnDamageTakenFromRanged(int damageTaken)
+    {
         AddReward(-0.2f);
     }
     public void OnPlayerLongAttackMissed()
@@ -81,14 +119,18 @@ public class Enemy_Dodge_Agent : Agent
             return;
         }
 
+        if (playerTransform.position.y < -5)
+        {
+            SetReward(0);
+            EndEpisode();
+            return;
+        }
+
         if (moveDirection != Vector3.zero)
         {
             transform.Translate(moveDirection.normalized * moveSpeed * Time.fixedDeltaTime, Space.World);
         }
     }
-    /// <summary>
-    /// 根据动作指令和 orientation 计算移动方向，并处理旋转。
-    /// </summary>
     private void UpdateMoveDirection(int moveAction)
     {
         Vector3 moveInput = Vector3.zero;
@@ -102,14 +144,13 @@ public class Enemy_Dodge_Agent : Agent
         moveDirection = moveInput;
         moveDirection.y = 0f;
 
-        // 旋转逻辑也在这里，与 Enemy_Agent 保持一致
         if (moveDirection != Vector3.zero)
         {
             enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.deltaTime * rotationSpeed);
         }
     }
     
-    // 手动测试模式
+    // 手動測試模式
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discreteActions = actionsOut.DiscreteActions;

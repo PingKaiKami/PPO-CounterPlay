@@ -61,6 +61,7 @@ public class Player_Behavior_Dodge : MonoBehaviour
     private int clockwise = 0; // AttackAndRun & AttackAndDash 模式的內部狀態
     private bool isDashing = false;
     private bool canDash = true;
+    private bool isAimed;
     protected private void Move()
     {
         Vector3 directionToTarget;
@@ -88,10 +89,6 @@ public class Player_Behavior_Dodge : MonoBehaviour
                 if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
                 {
                     StartCoroutine(Dash());
-                }
-                if (Input.GetMouseButtonDown(0) && curState == PlayerState.Idle)
-                {
-                    StartCoroutine(Attack());
                 }
                 if (Input.GetMouseButton(1) && curState == PlayerState.Idle || curState == PlayerState.Defending)
                 {
@@ -149,77 +146,40 @@ public class Player_Behavior_Dodge : MonoBehaviour
             curState = PlayerState.Idle;
         }
     }
-    IEnumerator Attack()
-    {
-        curState = PlayerState.StartUp;
-        float time = 0f;
-        Color targetColor = Color.yellow;
-        while (time < attackStartUpTime)
-        {
-            time += Time.deltaTime;
-            float t = time / attackStartUpTime;
-            mat.color = Color.Lerp(Color.white, targetColor, t);
-            yield return null;
-        }
-
-        bool isInRange = attackRange.IsEnemyInRange();
-        if (isInRange)
-        {
-            GameObject[] enemies = attackRange.GetEnemyInRange();
-            foreach (GameObject enemy in enemies)
-            {
-                HP enemy_HP = enemy.GetComponentInParent<HP>();
-                Enemy_Agent enemy_Agent = enemy.GetComponentInParent<Enemy_Agent>();
-                if (enemy_Agent.curState == Enemy_Agent.EnemyState.Defending)
-                {
-                    enemy_HP.Hurt(damage / 10);
-                }
-                else
-                {
-                    enemy_HP.Hurt(damage);
-                }
-
-            }
-        }
-        else
-        {
-            enemy.GetComponent<Enemy_Agent>().OnPlayerAttackMissed();
-        }
-
-        curState = PlayerState.Recovery;
-        time = 0f;
-        targetColor = Color.white;
-        while (time < attackRecoveryTime)
-        {
-            time += Time.deltaTime;
-            float t = time / attackRecoveryTime;
-            mat.color = Color.Lerp(Color.yellow, targetColor, t);
-            yield return null;
-        }
-        if (curState == PlayerState.Recovery)
-            curState = PlayerState.Waiting;
-    }
     IEnumerator LongAttack()
     {
         curState = PlayerState.StartUp;
         rb.velocity = Vector3.zero;
-
-        moveDirection = target.position - transform.position;
-        moveDirection.y = 0f;
-        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-
         float time = 0f;
         Color targetColor = Color.yellow;
-        while (time < attackStartUpTime)
+
+        while (time < longAttackStartUpTime - 1)
         {
             time += Time.deltaTime;
-            float t = time / attackStartUpTime;
+            float t = time / longAttackStartUpTime;
             mat.color = Color.Lerp(Color.white, targetColor, t);
+            moveDirection = target.position - transform.position;
+            moveDirection.y = 0f;
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+            yield return null;
+        }
+        isAimed = false;
+        while (time < longAttackStartUpTime)
+        {
+            if (!isAimed)
+            {
+                moveDirection = target.position - transform.position;
+                moveDirection.y = 0f;
+                Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                isAimed = true;
+            }
+            time += Time.deltaTime;
             yield return null;
         }
 
-        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection.normalized * 2, arrow.transform.rotation);
+        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection.normalized, arrow.transform.rotation);
         newArrow.GetComponent<Arrow_Dodge>().damage = longAttackDamage;
 
         Rigidbody arrow_rb = newArrow.GetComponent<Rigidbody>();
@@ -228,10 +188,10 @@ public class Player_Behavior_Dodge : MonoBehaviour
         curState = PlayerState.Recovery;
         time = 0f;
         targetColor = Color.white;
-        while (time < attackRecoveryTime)
+        while (time < longAttackRecoveryTime)
         {
             time += Time.deltaTime;
-            float t = time / attackRecoveryTime;
+            float t = time / longAttackRecoveryTime;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }

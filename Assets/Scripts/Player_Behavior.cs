@@ -49,6 +49,7 @@ public class Player_Behavior : MonoBehaviour
 
     [Header("LongAttack")]
     public GameObject arrow;
+    public float aimingRotationSpeed;
     public int longAttackDamage = 20;
     public float longAttackStartUpTime = 3f;
     public float longAttackRecoveryTime = 1f;
@@ -73,6 +74,7 @@ public class Player_Behavior : MonoBehaviour
     private float waitTime = 0;
     private int randomWaitTime = 0;
     private bool forceSmartAttack = false;
+    private bool isAimming = false;
     protected private void Move()
     {
         Vector3 directionToTarget;
@@ -349,18 +351,21 @@ public class Player_Behavior : MonoBehaviour
                     }
                     else
                     {
-                        clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                        Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                        rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
                         if (curState == PlayerState.Idle)
                         {
                             StartCoroutine(LongAttack());
                         }
+                        else
+                        {
+                            clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
+                            Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
+                            rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
+                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
+                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                        }
                     }
                 }
-                
+
                 break;
 
             case TrainingMode.Escape:
@@ -407,11 +412,11 @@ public class Player_Behavior : MonoBehaviour
                 Enemy_Agent enemy_Agent = enemy.GetComponentInParent<Enemy_Agent>();
                 if (enemy_Agent.curState == Enemy_Agent.EnemyState.Defending)
                 {
-                    enemy_HP.Hurt(damage / 10);
+                    enemy_HP.HurtFromMelee(damage / 10);
                 }
                 else
                 {
-                    enemy_HP.Hurt(damage);
+                    enemy_HP.HurtFromMelee(damage);
                 }
 
             }
@@ -438,24 +443,38 @@ public class Player_Behavior : MonoBehaviour
     {
         curState = PlayerState.StartUp;
         rb.velocity = Vector3.zero;
-
-        moveDirection = target.position - transform.position;
-        moveDirection.y = 0f;
-        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-
         float time = 0f;
         Color targetColor = Color.yellow;
-        while (time < attackStartUpTime)
+        isAimming = true;
+        Vector3 initialDirection = target.position - transform.position;
+        initialDirection.y = 0f;
+        transform.rotation = Quaternion.LookRotation(initialDirection.normalized);
+
+        while (time < longAttackStartUpTime)
         {
             time += Time.deltaTime;
-            float t = time / attackStartUpTime;
+            float t = time / longAttackStartUpTime;
             mat.color = Color.Lerp(Color.white, targetColor, t);
+            // --- 核心修改：只在目标偏离很大时才进行微调 ---
+            Vector3 currentDirectionToTarget = target.position - transform.position;
+            currentDirectionToTarget.y = 0f;
+
+            // 计算当前朝向和最新目标方向的夹角
+            float angleDifference = Vector3.Angle(transform.forward, currentDirectionToTarget);
+
+            // 只有当夹角大于某个阈值时（例如5度），才进行平滑的追蹤校准
+            if (angleDifference > 5.0f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * aimingRotationSpeed);
+            }
             yield return null;
         }
 
-        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection.normalized * 2, arrow.transform.rotation);
+        moveDirection = transform.forward.normalized;
+        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection, arrow.transform.rotation);
         newArrow.GetComponent<Arrow>().damage = longAttackDamage;
+        newArrow.GetComponent<Arrow>().target = enemy;
 
         Rigidbody arrow_rb = newArrow.GetComponent<Rigidbody>();
         arrow_rb.velocity = moveDirection * arrowSpeed;
@@ -463,10 +482,11 @@ public class Player_Behavior : MonoBehaviour
         curState = PlayerState.Recovery;
         time = 0f;
         targetColor = Color.white;
-        while (time < attackRecoveryTime)
+        isAimming = false;
+        while (time < longAttackRecoveryTime)
         {
             time += Time.deltaTime;
-            float t = time / attackRecoveryTime;
+            float t = time / longAttackRecoveryTime;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }
@@ -530,5 +550,9 @@ public class Player_Behavior : MonoBehaviour
     public void ChangeDistanceToEnemy(float distance)
     {
         distanceToEnemy = distance;
+    }
+    public bool IsAimming()
+    {
+        return isAimming;
     }
 }

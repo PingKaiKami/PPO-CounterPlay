@@ -27,7 +27,7 @@ public class Arrow_Dodge : MonoBehaviour
         if (other.CompareTag("Enemy"))
         {
             HP enemy_HP = other.GetComponentInParent<HP>();
-            enemy_HP.Hurt(damage);
+            enemy_HP.HurtFromRanged(damage);
             Destroy(gameObject);
         }
         else

@@ -1,0 +1,65 @@
+{
+    "EnemyAI": {
+        "checkpoints": [
+            {
+                "steps": 3499944,
+                "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-3499944.onnx",
+                "reward": 0.5568475361775469,
+                "creation_time": 1757258966.8003793,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-3499944.pt"
+                ]
+            },
+            {
+                "steps": 3999901,
+                "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-3999901.onnx",
+                "reward": 1.0435557303075889,
+                "creation_time": 1757259579.074274,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-3999901.pt"
+                ]
+            },
+            {
+                "steps": 4499962,
+                "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-4499962.onnx",
+                "reward": 0.42631838884618545,
+                "creation_time": 1757260196.3768919,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-4499962.pt"
+                ]
+            },
+            {
+                "steps": 4999951,
+                "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-4999951.onnx",
+                "reward": 0.8758452716198835,
+                "creation_time": 1757260818.9915946,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-4999951.pt"
+                ]
+            },
+            {
+                "steps": 5000084,
+                "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-5000084.onnx",
+                "reward": 0.8505417963391856,
+                "creation_time": 1757260819.0723462,
+                "auxillary_file_paths": [
+                    "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-5000084.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 5000084,
+            "file_path": "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI.onnx",
+            "reward": 0.8505417963391856,
+            "creation_time": 1757260819.0723462,
+            "auxillary_file_paths": [
+                "results\\EnemyAI_Combat_Master_Run_02\\EnemyAI\\EnemyAI-5000084.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}

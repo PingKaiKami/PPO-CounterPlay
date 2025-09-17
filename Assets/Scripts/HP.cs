@@ -20,7 +20,9 @@ public abstract class HP : MonoBehaviour
     {
         return (int)CurrentHP;
     }
-    public abstract void Hurt(int damage);
+    public abstract void HurtFromMelee(int damage);
+    public abstract void HurtFromRanged(int damage);
+
     protected virtual void Awake()
     {
         CurrentHP = maxHP;
