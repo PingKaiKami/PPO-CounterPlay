@@ -5,33 +5,31 @@ public class Arrow : MonoBehaviour
     public int damage;
     public float existTime = 2f;
     public GameObject target;
-    private float time = 0f;
-    private Player_Behavior player_Behavior;
-    private float distance2Target;
-    private float formedDistance;
+    private float time;
+    private GameObject owner; 
     void Start()
     {
-        distance2Target = 999;
-        formedDistance = distance2Target;
-        player_Behavior = FindObjectOfType<Player_Behavior>();
+        time = 0f;
+    }
+    private void OnEnable()
+    {
+        GameEvents.OnEpisodeEnd += SelfDestruct;
+    }
+
+    private void OnDisable()
+    {
+        GameEvents.OnEpisodeEnd -= SelfDestruct;
+    }
+    public void SetOwner(GameObject ownerObject)
+    {
+        this.owner = ownerObject;
     }
     void Update()
     {
-        if (time < 0.1f)
+        time += Time.deltaTime;
+        if (time > existTime)
         {
-            time += Time.deltaTime;
-        }
-        else
-        {
-            distance2Target = Vector3.Distance(target.transform.position, transform.position);
-            if (formedDistance < distance2Target)
-            {
-                Debug.Log("destroy arrow");
-                player_Behavior.enemy.GetComponent<Enemy_Agent>().OnPlayerLongAttackMissed();
-                Destroy(gameObject);
-            }
-            formedDistance = distance2Target;
-            time = 0f;
+            End();
         }
     }
     private void OnTriggerEnter(Collider other)
@@ -48,12 +46,23 @@ public class Arrow : MonoBehaviour
             {
                 enemy_HP.HurtFromRanged(damage);
             }
+            owner.GetComponent<Player_Behavior>().DeregisterProjectile(gameObject);
             Destroy(gameObject);
         }
         else
         {
-            player_Behavior.enemy.GetComponent<Enemy_Agent>().OnPlayerLongAttackMissed();
-            Destroy(gameObject);
+            End();
         }
+    }
+    private void End()
+    {
+        owner.GetComponent<Player_Behavior>().enemy.GetComponent<Enemy_Agent>().OnPlayerLongAttackMissed();
+        owner.GetComponent<Player_Behavior>().DeregisterProjectile(gameObject);
+        Destroy(gameObject);
+    }
+
+    private void SelfDestruct()
+    {
+        Destroy(gameObject);
     }
 }

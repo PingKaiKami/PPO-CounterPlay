@@ -5,7 +5,7 @@ public abstract class HP : MonoBehaviour
 {
     [Header("Health Settings")]
     [SerializeField] protected Slider hpSlider;
-    [SerializeField] protected int maxHP = 100;
+    public int maxHP = 100;
     public float CurrentHP { get; protected set; }
     public virtual void ResetHealth()
     {

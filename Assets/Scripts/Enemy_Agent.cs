@@ -30,6 +30,7 @@ public class Enemy_Agent : Agent
 
     [Header("Debug")]
     public bool printReward = false;
+    public bool printEndReward = true;
     public bool printState = false;
     private float episodeTimer;
     private HP player_HP;
@@ -43,6 +44,7 @@ public class Enemy_Agent : Agent
     private Vector3 moveDirection;
     private bool isRandom = false;
     private float attackRange = 2f;
+    private float actionProgress;
 
     void Awake()
     {
@@ -128,38 +130,48 @@ public class Enemy_Agent : Agent
     // 收集觀測資訊
     public override void CollectObservations(VectorSensor sensor)
     {
-        // 1. 自己的面對方向 (3 個值)
+        // 自己的面對方向 (3 個值)
         sensor.AddObservation(enemyObj.forward.normalized);
 
-        // 2. 自己到玩家的方向向量 (3 個值)
+        // 自己到玩家的方向向量 (3 個值)
         Vector3 toPlayer = playerTransform.position - transform.position;
         sensor.AddObservation(toPlayer.normalized);
 
-        // 4. 自己到玩家的距離(1 個值)
+        // 自己到玩家的距離(1 個值)
         sensor.AddObservation(toPlayer.magnitude);
 
-        // 5. 玩家速度向量 (3 個值)
+        // 玩家速度向量 (3 個值)
         // 確保 rigidbody 不是 null
         Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
         sensor.AddObservation(playerRb != null ? playerRb.velocity : Vector3.zero);
 
-        // 6. 玩家面對方向 (3 個值)
+        // 玩家面對方向 (3 個值)
         sensor.AddObservation(playerTransform.forward.normalized);
 
-        // 7. 玩家的詳細狀態 (PlayerState) (1 個值)
+        // 玩家的詳細狀態 (PlayerState) (1 個值)
         // 將 enum 轉換為整數，讓 AI 學習
         sensor.AddObservation((int)player_Behavior.GetCurrentState());
 
-        // 8. 自己的狀態 (EnemyState) (1 個值)
+        // 自己的狀態 (EnemyState) (1 個值)
         sensor.AddObservation((int)curState);
+
+        // 玩家當前動作進度
+        sensor.AddObservation(player_Behavior.GetActionProgress());
+
+        // 敵人當前動作進度
+        sensor.AddObservation(actionProgress);
+
+        // 敵人血量百分比
+        sensor.AddObservation((float)enemy_HP.GetCurrentHealth() / enemy_HP.maxHP);
+        
+        // 玩家血量百分比
+        sensor.AddObservation((float)player_HP.GetCurrentHealth() / player_HP.maxHP);
     }
-    // 接收來自神經網路的動作指令
+    // 接收來自神經網路的動作指令 (1 個值)
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // --- 1. 持續更新移動和朝向 ---
         int moveAction = actions.DiscreteActions[0];
         UpdateMoveDirection(moveAction);
-
         // --- 2. 根據狀態決定是否能執行新指令 (攻擊/防禦) ---
         // 如果正在攻擊流程中或防禦中，則不處理新的攻擊或防禦指令。
         if (curState == EnemyState.StartUp || curState == EnemyState.Defending)
@@ -172,7 +184,6 @@ public class Enemy_Agent : Agent
             // }
             return;
         }
-
         // --- 3. 執行狀態切換指令 (此時狀態必為 Idle) ---
         int attackAction = actions.DiscreteActions[1];
         // int defendAction = actions.DiscreteActions[2];
@@ -250,7 +261,7 @@ public class Enemy_Agent : Agent
         // }
 
         // 閃避長距離攻擊Reward
-        if (player_Behavior.IsAimming())
+        if (player_Behavior.IsAiming())
         {
             Vector3 playerPosition = playerTransform.position;
             Vector3 playerForward = playerTransform.forward;
@@ -262,27 +273,87 @@ public class Enemy_Agent : Agent
             {
                 if (hit.collider.CompareTag("Enemy"))
                 {
-                    // 是的，玩家的瞄准线直直地指向了我！
-                    // 这是一个非常危险的站位。
-
-                    // 6. 施加一个持续的负面惩罚
-                    //    惩罚的力度可以根据距离进行调整：离得越近，惩罚越大
                     float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
-                    float penalty = -(1.0f / (1.0f + distanceToPlayer)) * 0.05f; // 乘以一个系数来控制大小
+                    float penalty = -(1.0f / (1.0f + distanceToPlayer)) * (1.0f / (1.0f + distanceToPlayer)) * Time.deltaTime * player_Behavior.GetActionProgress();
 
                     AddReward(penalty);
-                    // Debug.Log($"PENALIZED for being in player's line of fire! Penalty: {penalty}");
+                    penalty1Sum += penalty;
+                }
+            }
+            else
+            {
+                float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
+                float reward = 1.0f / (1 + distanceToPlayer) * 1.0f / (1 + distanceToPlayer) * Time.deltaTime * player_Behavior.GetActionProgress();
+
+                AddReward(reward);
+                reward1Sum += reward;
+            }
+            Debug.DrawRay(playerPosition, playerForward * raycastDistance, Color.yellow);
+        }
+        else
+        {
+            if (printReward)
+            {
+                Debug.Log($"Aiming_Avoid_Reward: {reward1Sum}");
+                Debug.Log($"Aiming_Avoid_Penalty: {penalty1Sum}");
+            }
+            reward1Sum = 0;
+            penalty1Sum = 0;
+        }
+        // 躲避箭矢Reward
+        IReadOnlyList<GameObject> activeProjectiles = player_Behavior.ActiveProjectiles;
+        if (activeProjectiles.Count > 0)
+        {
+            foreach (var projectile in activeProjectiles)
+            {
+                if (projectile == null) continue;
+
+                Rigidbody projectileRb = projectile.GetComponent<Rigidbody>();
+                if (projectileRb == null || projectileRb.velocity.sqrMagnitude < 0.1f) continue;
+
+                Vector3 projectilePosition = projectile.transform.position;
+                Vector3 projectileDirection = projectileRb.velocity.normalized;
+
+                Vector3 directionToMe = (transform.position - projectilePosition).normalized;
+
+                float alignment = Vector3.Dot(projectileDirection, directionToMe);
+
+                if (alignment > 0.95f)
+                {
+                    float distanceToProjectile = Vector3.Distance(transform.position, projectilePosition);
+
+                    float penalty = -(1.0f / (1.0f + Mathf.Pow(distanceToProjectile, 2))) * Time.deltaTime;
+
+                    AddReward(penalty);
+                    penalty2Sum += penalty; 
                 }
                 else
                 {
-                    AddReward(0.005f);
+                    float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+                    float reward = 1.0f / (1.0f + Mathf.Pow(distanceToPlayer, 2)) * Time.deltaTime;
+
+                    AddReward(reward);
+                    reward2Sum += reward;
                 }
             }
-            // 可选：在 Scene 视图中将这条射线画出来，方便除错
-            Debug.DrawRay(playerPosition, playerForward * raycastDistance, Color.yellow);
         }
-        AddReward(0.0005f);
+        else
+        {
+            if (printReward)
+            {
+                Debug.Log($"Arrow_Avoid_Reward: {reward2Sum}");
+                Debug.Log($"Arrow_Avoid_Penalty: {penalty2Sum}");
+            }
+            reward2Sum = 0;
+            penalty2Sum = 0;
+        }
+        
+        AddReward(0.0001f);
     }
+    private float reward1Sum;
+    private float penalty1Sum;
+    private float reward2Sum;
+    private float penalty2Sum;
     private void UpdateMoveDirection(int moveAction)
     {
         Vector3 moveInput = Vector3.zero;
@@ -317,11 +388,11 @@ public class Enemy_Agent : Agent
                 AddReward(1);
             }
             SetReward(1);
-            if (printReward)
+            if (printEndReward)
             {
                 Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
             }
-            EndEpisode();
+            EndAndCleanupEpisode();
             return;
         }
 
@@ -329,11 +400,11 @@ public class Enemy_Agent : Agent
         if (enemy_HP != null && enemy_HP.IsDead())
         {
             SetReward(-1);
-            if (printReward)
+            if (printEndReward)
             {
                 Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
             }
-            EndEpisode();
+            EndAndCleanupEpisode();
             return;
         }
 
@@ -341,22 +412,22 @@ public class Enemy_Agent : Agent
         if (episodeTimer >= maxEpisodeTime)
         {
             SetReward(-2);
-            if (printReward)
+            if (printEndReward)
             {
                 Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
             }
-            EndEpisode();
+            EndAndCleanupEpisode();
             return;
         }
 
         if (playerTransform.position.y < -5)
         {
             SetReward(0f);
-            if (printReward)
+            if (printEndReward)
             {
                 Debug.Log($"Episode End: Player fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
             }
-            EndEpisode();
+            EndAndCleanupEpisode();
             return;
         }
 
@@ -369,6 +440,12 @@ public class Enemy_Agent : Agent
             }
         }
     }
+    private void EndAndCleanupEpisode()
+    {
+        GameEvents.TriggerEpisodeEnd();
+
+        EndEpisode();
+    }
 
     IEnumerator Attack(ComboData combo)
     {
@@ -380,10 +457,11 @@ public class Enemy_Agent : Agent
         foreach (AttackData step in combo.attackSteps)
         {
             attackRange_enemy.UpdateAttackShape(step);
-            player_Behavior.ChangeDistanceToEnemy(step.attackRange * 1.2f);
+            // player_Behavior.ChangeDistanceToEnemy(step.attackRange * 1.2f);
             attackRange = step.attackRange;
 
             float time = 0f;
+            actionProgress = 0f;
             curState = EnemyState.StartUp;
             Vector3 startPosition = transform.position;
             Vector3 endPosition = startPosition + enemyObj.forward * step.forwardMovement;
@@ -392,12 +470,14 @@ public class Enemy_Agent : Agent
             {
                 time += Time.deltaTime;
                 float t = time / step.startupTime;
+                actionProgress = t;
                 float movementProgress = step.movementCurve.Evaluate(t);
                 rb.MovePosition(Vector3.Lerp(startPosition, endPosition, movementProgress));
 
                 mat.color = Color.Lerp(oriColor, targetColor, t);
                 yield return null;
             }
+
             Vector3 directionToPlayer = playerTransform.position - transform.position;
             directionToPlayer.y = 0;
             Vector3 enemyForward = enemyObj.forward;
@@ -425,15 +505,27 @@ public class Enemy_Agent : Agent
             {
                 if (angle > step.attackAngle / 2)
                 {
-                    AddReward(-0.2f);
+                    AddReward(-0.1f);
                 }
-                AddReward(-0.05f);
+                AddReward(-0.1f);
             }
 
             curState = EnemyState.Recovery;
+            time = 0f;
+            actionProgress = 0f;
             mat.color = Color.green;
-            yield return new WaitForSeconds(step.recoveryTime);
+            targetColor = oriColor;
 
+            while (time < step.recoveryTime)
+            {
+                time += Time.deltaTime;
+                float t = time / step.recoveryTime;
+                actionProgress = t;
+                mat.color = Color.Lerp(Color.green, targetColor, t);
+                yield return null;
+            }
+
+            actionProgress = 0f;
             mat.color = oriColor;
             curState = EnemyState.Idle;
         }
@@ -505,9 +597,9 @@ public class Enemy_Agent : Agent
         // }
         if (printReward)
         {
-            Debug.Log($"AttackReward : {damageDealt / 500.0f}");
+            Debug.Log($"AttackReward : {damageDealt / 100.0f}");
         }
-        AddReward(damageDealt / 500.0f);
+        AddReward(damageDealt / 100.0f);
     }
     public void OnDamageTakenFromMelee(int damageTaken)
     {
@@ -529,8 +621,8 @@ public class Enemy_Agent : Agent
     {
         if (printReward)
         {
-            Debug.Log("PlayerLongAttackMissReward : 0.1");
+            Debug.Log("PlayerLongAttackMissReward : 0.2");
         }
-        AddReward(0.1f);
+        AddReward(0.2f);
     }
 }

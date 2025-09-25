@@ -200,8 +200,8 @@ Transform:
   m_GameObject: {fileID: 2357137007618906132}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 25, y: 5, z: 0}
-  m_LocalScale: {x: 50, y: 10, z: 1}
+  m_LocalPosition: {x: 50, y: 5, z: 0}
+  m_LocalScale: {x: 100, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7645724039007971279}
@@ -691,7 +691,7 @@ MonoBehaviour:
       startupTime: 1
       recoveryTime: 3
       damage: 30
-      attackRange: 4
+      attackRange: 3
       attackAngle: 120
       forwardMovement: 5
       movementCurve:
@@ -732,10 +732,10 @@ MonoBehaviour:
     attackSteps:
     - stepName: Fast Attack 1
       startupTime: 0.5
-      recoveryTime: 0
+      recoveryTime: 1
       damage: 20
       attackRange: 2
-      attackAngle: 60
+      attackAngle: 90
       forwardMovement: 3
       movementCurve:
         serializedVersion: 2
@@ -764,7 +764,7 @@ MonoBehaviour:
     comboCooldown: 1
   playerTransform: {fileID: 3901040745478538785}
   maxEpisodeTime: 30
-  printReward: 1
+  printReward: 0
   printState: 0
 --- !u!114 &562014053209935406
 MonoBehaviour:
@@ -779,7 +779,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 15
+    VectorObservationSize: 17
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -1047,8 +1047,8 @@ Transform:
   m_GameObject: {fileID: 7339039456645087264}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 25}
-  m_LocalScale: {x: 50, y: 10, z: 1}
+  m_LocalPosition: {x: 0, y: 5, z: 50}
+  m_LocalScale: {x: 100, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7645724039007971279}
@@ -1153,7 +1153,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5, y: 1, z: 5}
+  m_LocalScale: {x: 10, y: 1, z: 10}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4876911871509266614}
@@ -1258,8 +1258,8 @@ Transform:
   m_GameObject: {fileID: 7815979066058922027}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -25, y: 5, z: 0}
-  m_LocalScale: {x: 50, y: 10, z: 1}
+  m_LocalPosition: {x: -50, y: 5, z: 0}
+  m_LocalScale: {x: 100, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7645724039007971279}
@@ -1411,10 +1411,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemy: {fileID: 5135639864949769572}
-  curState: 0
-  curMode: 6
   target: {fileID: 5506724503562418699}
   orientation: {fileID: 1329288951844610101}
+  curMode: 6
   moveSpeed: 5
   rotationSpeed: 10
   dashSpeed: 30
@@ -1424,16 +1423,16 @@ MonoBehaviour:
   attackBufferRange: 0.5
   attackStartUpTime: 0.5
   attackRecoveryTime: 1
-  arrow: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234, type: 3}
-  aimingRotationSpeed: 3
+  arrowPrefab: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234,
+    type: 3}
+  aimingRotationSpeed: 5
   longAttackDamage: 40
   longAttackStartUpTime: 2
   longAttackRecoveryTime: 1
   longAttackRange: 5
-  arrowSpeed: 1
-  strafeSpeed: 1.5
-  strafeDirectionChangeInterval: 2
-  waitingPossibility: 0.99
+  arrowSpeed: 5
+  strafeSpeed: 1
+  waitingRecoveryChance: 0.99
 --- !u!114 &3376494440706705712
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1477,8 +1476,8 @@ Transform:
   m_GameObject: {fileID: 8486940096068278912}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: -25}
-  m_LocalScale: {x: 50, y: 10, z: 1}
+  m_LocalPosition: {x: 0, y: 5, z: -50}
+  m_LocalScale: {x: 100, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7645724039007971279}

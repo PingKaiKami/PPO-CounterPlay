@@ -122,7 +122,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 20
-  existTime: 2
+  existTime: 3
+  target: {fileID: 0}
 --- !u!54 &6748129784500811369
 Rigidbody:
   m_ObjectHideFlags: 0

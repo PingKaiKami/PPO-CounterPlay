@@ -2,20 +2,13 @@ using UnityEngine;
 
 public class Player : Player_Behavior
 {
-    void Start()
+    void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-        attackRange = GetComponentInChildren<AttackRange>();
-        attackRadius = attackRange.radius;
-        mat = GetComponentInChildren<Renderer>().material;
-        SetRandomTime();
+        base.Initialize(); // 调用基类的初始化
     }
-    void Update()
+
+    void FixedUpdate() // 建议在 FixedUpdate 中更新行为，与物理同步
     {
-        Move();
-        if (curState == PlayerState.Waiting)
-        {
-            Wait();
-        }
+        base.UpdateBehavior(); // 调用基类的核心更新循环
     }
 }

@@ -1,38 +1,19 @@
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
-public class Player_Behavior : MonoBehaviour
+public abstract class Player_Behavior : MonoBehaviour
 {
-    public enum PlayerState
-    {
-        Idle,
-        StartUp,
-        Recovery,
-        Defending,
-        Waiting
-    }
+    public enum PlayerState { Idle, StartUp, Recovery, Defending, Waiting, Dashing }
+    public enum TrainingMode { AutoTrace, OnlyAttack, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, Escape, Random, Manual }
 
-    public enum TrainingMode
-    {
-        AutoTrace,
-        OnlyAttack,
-        OnlyDash,
-        AttackAndRun,
-        AttackAndDash,
-        SmartAttack,
-        LongRangeAttack,
-        Escape,
-        Random,
-        Manual
-    }
+    [Header("References")]
     public GameObject enemy;
-
-    [Header("Behavior Settings")]
-    public PlayerState curState;
-    public TrainingMode curMode;
     public Transform target;
     public Transform orientation;
+
+    [Header("Behavior Settings")]
+    public TrainingMode curMode;
 
     [Header("Movement & Dash")]
     public float moveSpeed = 5f;
@@ -43,409 +24,256 @@ public class Player_Behavior : MonoBehaviour
 
     [Header("Attack")]
     public int damage = 15;
-    public float attackBufferRange = 0.5f; // 預輸入距離(因為攻擊有延遲)
+    public float attackBufferRange = 0.5f;
     public float attackStartUpTime = 0.5f;
     public float attackRecoveryTime = 1f;
 
     [Header("LongAttack")]
-    public GameObject arrow;
+    public GameObject arrowPrefab;
     public float aimingRotationSpeed;
     public int longAttackDamage = 20;
-    public float longAttackStartUpTime = 3f;
+    public float longAttackStartUpTime = 2f;
     public float longAttackRecoveryTime = 1f;
     public float longAttackRange = 5f;
     public float arrowSpeed = 1f;
 
     [Header("AI Decision Making")]
-    [Tooltip("左右橫移的速度")]
     public float strafeSpeed = 1.5f;
-    [Tooltip("每隔多少秒改變一次橫移方向")]
-    public float strafeDirectionChangeInterval = 2.0f;
-    public float waitingPossibility = 0.99f;
+
+    [Range(0.01f, 1.0f)]
+    public float waitingRecoveryChance = 0.1f;
+
+    public PlayerState CurrentState { get; protected set; } = PlayerState.Idle;
+
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;
     protected Material mat;
-    private float distanceToEnemy = 3; // 保持與敵人的距離
-    private Vector3 moveDirection;
-    private int clockwise = 0; // AttackAndRun & AttackAndDash 模式的內部狀態
-    private bool isDashing = false;
-    private bool canDash = true;
-    private float waitTime = 0;
-    private int randomWaitTime = 0;
-    private bool forceSmartAttack = false;
-    private bool isAimming = false;
-    protected private void Move()
+
+    private Vector3 _moveDirection;
+    private bool _isDashing = false;
+    private bool _canDash = true;
+    private bool _isAiming = false;
+    private int _clockwise = 0;
+    private float _waitTime = 0;
+    private float _randomWaitTime = 0;
+    private bool _forceSmartAttack = false;
+    private List<GameObject> _activeProjectiles = new List<GameObject>();
+    public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
+    private float _actionProgress = 0f;
+    public PlayerState GetCurrentState() => CurrentState;
+    public bool IsAiming() => _isAiming;
+    public float GetActionProgress() => _actionProgress;
+    public bool IsEnemyInAttackRange(GameObject e) => attackRange != null && attackRange.IsSpecificEnemyInRange(e);
+
+    protected void Initialize()
     {
-        Vector3 directionToTarget;
-        float distanceToTarget;
+        rb = GetComponent<Rigidbody>();
+        attackRange = GetComponentInChildren<AttackRange>();
+        if (attackRange != null) attackRadius = attackRange.radius;
+        var renderer = GetComponentInChildren<Renderer>();
+        if (renderer != null) mat = renderer.material;
+        SetRandomTime();
+    }
+
+    protected void UpdateBehavior()
+    {
+        if (CurrentState == PlayerState.StartUp || CurrentState == PlayerState.Recovery || _isDashing)
+        {
+            return;
+        }
+
+        _moveDirection = CalculateMoveDirection();
+        ApplyMovement(_moveDirection);
+        ApplyRotation(_moveDirection);
+
+        if (CurrentState == PlayerState.Waiting)
+        {
+            ProcessWaitingState();
+            return;
+        }
+        TriggerActions(_moveDirection);
+    }
+    private void ProcessWaitingState()
+    {
+        if (Random.value < waitingRecoveryChance * Time.deltaTime)
+        {
+            CurrentState = PlayerState.Idle;
+        }
+    }
+
+    private Vector3 CalculateMoveDirection()
+    {
+        if (target == null && curMode != TrainingMode.Manual) return Vector3.zero;
+
+        Vector3 directionToTarget = target.position - transform.position;
+        directionToTarget.y = 0;
+        float distanceToTarget = directionToTarget.magnitude;
 
         switch (curMode)
         {
             case TrainingMode.Manual:
-                float horizontalInput = 0f;
-                float verticalInput = 0f;
-
-                if (Input.GetKey(KeyCode.W)) verticalInput += 1f;
-                if (Input.GetKey(KeyCode.S)) verticalInput -= 1f;
-                if (Input.GetKey(KeyCode.D)) horizontalInput += 1f;
-                if (Input.GetKey(KeyCode.A)) horizontalInput -= 1f;
-
-                moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-                moveDirection.y = 0f;
-
-                if (!isDashing)
-                {
-                    rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                }
-
-                if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
-                {
-                    StartCoroutine(Dash());
-                }
-                if (Input.GetMouseButtonDown(0) && curState == PlayerState.Idle)
-                {
-                    StartCoroutine(Attack());
-                }
-                if (Input.GetMouseButton(1) && curState == PlayerState.Idle || curState == PlayerState.Defending)
-                {
-                    curState = PlayerState.Defending;
-                    mat.color = Color.blue;
-                }
-                if (Input.GetMouseButtonUp(1) && curState == PlayerState.Defending && (curState != PlayerState.StartUp || curState != PlayerState.Recovery))
-                {
-                    curState = PlayerState.Idle;
-                    mat.color = Color.white;
-                }
-                break;
+                float h = Input.GetAxisRaw("Horizontal");
+                float v = Input.GetAxisRaw("Vertical");
+                return (orientation.forward * v + orientation.right * h).normalized;
 
             case TrainingMode.AutoTrace:
-                moveDirection = target.position - transform.position;
-                moveDirection.y = 0f;
-
-                if (!isDashing)
-                {
-                    rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                }
-
-                if (moveDirection.magnitude <= (attackRadius + attackBufferRange) && curState == PlayerState.Idle)
-                {
-                    StartCoroutine(Attack());
-                }
-                break;
             case TrainingMode.OnlyAttack:
-                moveDirection = target.position - transform.position;
-                moveDirection.y = 0f;
-
-                if (moveDirection.magnitude <= attackRadius && curState == PlayerState.Idle)
-                {
-                    StartCoroutine(Attack());
-                }
-                break;
-
-            case TrainingMode.OnlyDash:
-                directionToTarget = target.position - transform.position;
-                directionToTarget.y = 0;
-                distanceToTarget = directionToTarget.magnitude;
-                if (canDash)
-                {
-                    if (distanceToTarget > distanceToEnemy)
-                    {
-                        moveDirection = directionToTarget;
-                        StartCoroutine(Dash());
-                    }
-                    else
-                    {
-                        moveDirection = new Vector3((Random.value < 0.5f ? -1 : 1) * directionToTarget.z, 0, directionToTarget.x);
-                        StartCoroutine(Dash());
-                    }
-                }
-                break;
+                return directionToTarget;
 
             case TrainingMode.AttackAndRun:
-                directionToTarget = target.position - transform.position;
-                directionToTarget.y = 0;
-                distanceToTarget = directionToTarget.magnitude;
-                if (curState == PlayerState.Idle || curState == PlayerState.StartUp)
-                {
-                    if (distanceToTarget > (attackRadius + attackBufferRange) || curState == PlayerState.StartUp)
-                    {
-                        moveDirection = directionToTarget;
-                        rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                    }
-                    else
-                    {
-                        StartCoroutine(Attack());
-                    }
-                    clockwise = 0;
-                }
-                else
-                {
-                    if (distanceToTarget < distanceToEnemy)
-                    {
-                        moveDirection = -directionToTarget;
-                        rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                    }
-                    else
-                    {
-                        clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                        Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                        rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                    }
-                }
-                break;
-
             case TrainingMode.AttackAndDash:
-                if (target == null) return;
-                directionToTarget = target.position - transform.position;
-                directionToTarget.y = 0;
-                distanceToTarget = directionToTarget.magnitude;
-
-                if (curState == PlayerState.Idle || curState == PlayerState.StartUp)
-                {
-                    if (distanceToTarget > (attackRadius + attackBufferRange) || curState == PlayerState.StartUp)
-                    {
-                        moveDirection = directionToTarget;
-                        rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                    }
-                    else
-                    {
-                        StartCoroutine(Attack());
-                    }
-                }
+                if (CurrentState == PlayerState.Idle)
+                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
                 else
-                {
-                    if (curState != PlayerState.Waiting && canDash)
-                    {
-                        moveDirection = -directionToTarget;
-                        StartCoroutine(Dash());
-                        clockwise = 0;
-                    }
-                    else if (!isDashing)
-                    {
-                        if (distanceToTarget < distanceToEnemy)
-                        {
-                            moveDirection = -directionToTarget;
-                            rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                        else
-                        {
-                            clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                            Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                            rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                    }
-
-                }
-                break;
+                    return (distanceToTarget < 3f) ? -directionToTarget : GetStrafeDirection(directionToTarget);
 
             case TrainingMode.SmartAttack:
-                if (target == null) return;
-                directionToTarget = target.position - transform.position;
-                directionToTarget.y = 0;
-                distanceToTarget = directionToTarget.magnitude;
-
-                if (curState == PlayerState.Idle || curState == PlayerState.StartUp || forceSmartAttack)
-                {
-                    if (enemy.GetComponent<Enemy_Agent>().GetEnemyState() == Enemy_Agent.EnemyState.Recovery || curState == PlayerState.StartUp || forceSmartAttack)
-                    {
-                        if (distanceToTarget > (attackRadius + attackBufferRange) || curState == PlayerState.StartUp)
-                        {
-                            moveDirection = directionToTarget;
-                            rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                        else
-                        {
-                            StartCoroutine(Attack());
-                            forceSmartAttack = false;
-                        }
-                    }
-                    else
-                    {
-                        if (distanceToTarget < distanceToEnemy)
-                        {
-                            moveDirection = -directionToTarget;
-                            rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                        else
-                        {
-                            clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                            Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                            rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-
-                        if (waitTime < randomWaitTime)
-                        {
-                            waitTime += Time.deltaTime;
-                        }
-                        else
-                        {
-                            forceSmartAttack = true;
-                            waitTime = 0f;
-                            SetRandomTime();
-                        }
-
-                    }
-                }
+                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
+                if (enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery || _forceSmartAttack)
+                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
                 else
-                {
-                    if (curState != PlayerState.Waiting && canDash)
-                    {
-                        moveDirection = -directionToTarget;
-                        StartCoroutine(Dash());
-                        clockwise = 0;
-                    }
-                    else if (!isDashing)
-                    {
-                        if (distanceToTarget < distanceToEnemy)
-                        {
-                            moveDirection = -directionToTarget;
-                            rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                        else
-                        {
-                            clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                            Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                            rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                    }
-                }
-                break;
+                    return GetDefensiveMoveDirection(distanceToTarget, directionToTarget);
 
             case TrainingMode.LongRangeAttack:
-                directionToTarget = target.position - transform.position;
-                directionToTarget.y = 0;
-                distanceToTarget = directionToTarget.magnitude;
-                if (curState == PlayerState.Idle || curState == PlayerState.Waiting)
-                {
-                    if (distanceToTarget < longAttackRange)
-                    {
-                        moveDirection = -directionToTarget;
-                        rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                    }
-                    else
-                    {
-                        if (curState == PlayerState.Idle)
-                        {
-                            StartCoroutine(LongAttack());
-                        }
-                        else
-                        {
-                            clockwise = (clockwise != 0) ? clockwise : Random.value < 0.5f ? 1 : -1;
-                            Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-                            rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
-                            Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                        }
-                    }
-                }
-
-                break;
+                return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
 
             case TrainingMode.Escape:
-                moveDirection = transform.position - target.position;
-                moveDirection.y = 0f;
+                return -directionToTarget;
 
-                if (!isDashing)
-                {
-                    rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
-                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-                }
-                break;
+            default:
+                return Vector3.zero;
         }
-
     }
-    protected private void Wait()
+
+    private Vector3 GetDefensiveMoveDirection(float distance, Vector3 direction)
     {
-        if (Random.value > waitingPossibility)
+        UpdateSmartAttackTimer();
+        return distance < 3f ? -direction : GetStrafeDirection(direction);
+    }
+
+    private Vector3 GetStrafeDirection(Vector3 directionToTarget)
+    {
+        _clockwise = (_clockwise != 0) ? _clockwise : (Random.value < 0.5f ? 1 : -1);
+        return _clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
+    }
+
+    private void UpdateSmartAttackTimer()
+    {
+        _waitTime += Time.deltaTime;
+        if (_waitTime >= _randomWaitTime)
         {
-            curState = PlayerState.Idle;
+            _forceSmartAttack = true;
+            _waitTime = 0f;
+            SetRandomTime();
         }
     }
-    IEnumerator Attack()
+
+    private void ApplyMovement(Vector3 direction)
     {
-        curState = PlayerState.StartUp;
+        if (CurrentState == PlayerState.Defending)
+        {
+            rb.velocity = Vector3.zero;
+            return;
+        }
+        rb.velocity = direction.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+    }
+
+    private void ApplyRotation(Vector3 direction)
+    {
+        if (direction.sqrMagnitude > 0.01f)
+        {
+            var targetRotation = Quaternion.LookRotation(direction.normalized);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        }
+    }
+
+    private void TriggerActions(Vector3 moveDir)
+    {
+        if (CurrentState != PlayerState.Idle && CurrentState != PlayerState.Waiting) return;
+
+        if (curMode == TrainingMode.Manual)
+        {
+            if (Input.GetMouseButtonDown(0)) StartCoroutine(Attack());
+            if (Input.GetKeyDown(KeyCode.LeftShift) && _canDash) StartCoroutine(Dash(moveDir));
+            // Defending logic...
+        }
+        else // AI Trigger Logic
+        {
+            float distanceToTarget = Vector3.Distance(transform.position, target.position);
+
+            if (curMode == TrainingMode.AutoTrace || curMode == TrainingMode.OnlyAttack)
+            {
+                if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+            }
+            else if (curMode == TrainingMode.AttackAndRun || curMode == TrainingMode.AttackAndDash || curMode == TrainingMode.SmartAttack)
+            {
+                if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+            }
+            else if (curMode == TrainingMode.LongRangeAttack)
+            {
+                if (distanceToTarget >= longAttackRange) StartCoroutine(LongAttack());
+            }
+            else if (curMode == TrainingMode.OnlyDash && _canDash)
+            {
+                StartCoroutine(Dash(moveDir));
+            }
+        }
+    }
+
+    private IEnumerator Attack()
+    {
+        CurrentState = PlayerState.StartUp;
+        _actionProgress = 0f;
+        rb.velocity = Vector3.zero;
         float time = 0f;
         Color targetColor = Color.yellow;
         while (time < attackStartUpTime)
         {
             time += Time.deltaTime;
             float t = time / attackStartUpTime;
+            _actionProgress = t;
             mat.color = Color.Lerp(Color.white, targetColor, t);
             yield return null;
         }
 
-        bool isInRange = attackRange.IsEnemyInRange();
-        if (isInRange)
+        if (attackRange.IsEnemyInRange())
         {
-            GameObject[] enemies = attackRange.GetEnemyInRange();
-            foreach (GameObject enemy in enemies)
+            var enemies = attackRange.GetEnemyInRange();
+            foreach (var e in enemies)
             {
-                HP enemy_HP = enemy.GetComponentInParent<HP>();
-                Enemy_Agent enemy_Agent = enemy.GetComponentInParent<Enemy_Agent>();
-                if (enemy_Agent.curState == Enemy_Agent.EnemyState.Defending)
-                {
-                    enemy_HP.HurtFromMelee(damage / 10);
-                }
-                else
-                {
-                    enemy_HP.HurtFromMelee(damage);
-                }
-
+                var enemyHP = e.GetComponentInParent<HP>();
+                if (enemyHP != null) enemyHP.HurtFromMelee(damage);
             }
         }
         else
         {
-            enemy.GetComponent<Enemy_Agent>().OnPlayerAttackMissed();
+            enemy?.GetComponent<Enemy_Agent>()?.OnPlayerAttackMissed();
         }
-
-        curState = PlayerState.Recovery;
+        
+        CurrentState = PlayerState.Recovery;
+        _actionProgress = 0f;
         time = 0f;
         targetColor = Color.white;
         while (time < attackRecoveryTime)
         {
             time += Time.deltaTime;
             float t = time / attackRecoveryTime;
+            _actionProgress = t;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }
-        if (curState == PlayerState.Recovery)
-            curState = PlayerState.Waiting;
+        CurrentState = PlayerState.Waiting;
     }
-    IEnumerator LongAttack()
+
+    private IEnumerator LongAttack()
     {
-        curState = PlayerState.StartUp;
+        CurrentState = PlayerState.StartUp;
+        _actionProgress = 0f;
         rb.velocity = Vector3.zero;
         float time = 0f;
         Color targetColor = Color.yellow;
-        isAimming = true;
+        _isAiming = true;
         Vector3 initialDirection = target.position - transform.position;
         initialDirection.y = 0f;
         transform.rotation = Quaternion.LookRotation(initialDirection.normalized);
@@ -454,15 +282,13 @@ public class Player_Behavior : MonoBehaviour
         {
             time += Time.deltaTime;
             float t = time / longAttackStartUpTime;
+            _actionProgress = t;
             mat.color = Color.Lerp(Color.white, targetColor, t);
-            // --- 核心修改：只在目标偏离很大时才进行微调 ---
             Vector3 currentDirectionToTarget = target.position - transform.position;
             currentDirectionToTarget.y = 0f;
 
-            // 计算当前朝向和最新目标方向的夹角
             float angleDifference = Vector3.Angle(transform.forward, currentDirectionToTarget);
 
-            // 只有当夹角大于某个阈值时（例如5度），才进行平滑的追蹤校准
             if (angleDifference > 5.0f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
@@ -471,88 +297,78 @@ public class Player_Behavior : MonoBehaviour
             yield return null;
         }
 
-        moveDirection = transform.forward.normalized;
-        GameObject newArrow = Instantiate(arrow, transform.position + moveDirection, arrow.transform.rotation);
-        newArrow.GetComponent<Arrow>().damage = longAttackDamage;
-        newArrow.GetComponent<Arrow>().target = enemy;
+        Vector3 spawnPos = transform.position + transform.forward;
+        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation);
+        _activeProjectiles.Add(newArrow);
+        var arrowComp = newArrow.GetComponent<Arrow>();
+        if (arrowComp != null)
+        {
+            arrowComp.damage = longAttackDamage;
+            arrowComp.target = enemy;
+            arrowComp.SetOwner(gameObject);
+        }
+        newArrow.GetComponent<Rigidbody>().velocity = transform.forward * arrowSpeed;
 
-        Rigidbody arrow_rb = newArrow.GetComponent<Rigidbody>();
-        arrow_rb.velocity = moveDirection * arrowSpeed;
-
-        curState = PlayerState.Recovery;
+        CurrentState = PlayerState.Recovery;
+        _actionProgress = 0f;
         time = 0f;
         targetColor = Color.white;
-        isAimming = false;
+        _isAiming = false;
         while (time < longAttackRecoveryTime)
         {
             time += Time.deltaTime;
             float t = time / longAttackRecoveryTime;
+            _actionProgress = t;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return null;
         }
-        if (curState == PlayerState.Recovery)
-            curState = PlayerState.Waiting;
+        _actionProgress = 0f;
+        if (CurrentState == PlayerState.Recovery)
+            CurrentState = PlayerState.Waiting;
     }
-    IEnumerator Dash()
+
+    private IEnumerator Dash(Vector3 direction)
     {
-        isDashing = true;
-        canDash = false;
-        Vector3 dashDir = moveDirection.normalized;
-        if (dashDir == Vector3.zero)
-            dashDir = orientation.forward;
+        _isDashing = true;
+        _canDash = false;
+        Vector3 dashDir = direction.normalized;
+        if (dashDir == Vector3.zero && orientation != null) dashDir = orientation.forward;
+        else if (dashDir == Vector3.zero) dashDir = transform.forward;
 
         rb.velocity = dashDir * dashSpeed;
-        Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
 
         yield return new WaitForSeconds(dashDuration);
-
-        isDashing = false;
+        _isDashing = false;
         rb.velocity = Vector3.zero;
         yield return new WaitForSeconds(dashCooldown);
+        _canDash = true;
+    }
 
-        canDash = true;
-    }
-    public PlayerState GetCurrentState()
-    {
-        return curState;
-    }
-    public bool IsEnemyInAttackRange(GameObject enemy)
-    {
-        if (attackRange != null)
-        {
-            return attackRange.IsSpecificEnemyInRange(enemy);
-        }
-        return false;
-    }
     public void SetRandomTrainingMode()
     {
-        System.Array allModes = System.Enum.GetValues(typeof(TrainingMode));
-
-        List<TrainingMode> availableModes = new List<TrainingMode>();
+        var allModes = System.Enum.GetValues(typeof(TrainingMode));
+        var availableModes = new List<TrainingMode>();
         foreach (TrainingMode mode in allModes)
         {
-            // 暫時排除 Escape的模式
-            if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash)
+            if (mode != TrainingMode.Manual && mode != TrainingMode.Random)
             {
                 availableModes.Add(mode);
             }
         }
-        int randomIndex = Random.Range(0, availableModes.Count);
-        curMode = availableModes[randomIndex];
-
+        curMode = availableModes[Random.Range(0, availableModes.Count)];
         Debug.Log($"Player mode set to: {curMode}");
     }
-    protected private void SetRandomTime()
+
+    private void SetRandomTime()
     {
-        randomWaitTime = Random.Range(0, 3);
+        _randomWaitTime = Random.Range(0, 3);
     }
-    public void ChangeDistanceToEnemy(float distance)
+
+    public void DeregisterProjectile(GameObject projectile)
     {
-        distanceToEnemy = distance;
-    }
-    public bool IsAimming()
-    {
-        return isAimming;
+        if (_activeProjectiles.Contains(projectile))
+        {
+            _activeProjectiles.Remove(projectile);
+        }
     }
 }
