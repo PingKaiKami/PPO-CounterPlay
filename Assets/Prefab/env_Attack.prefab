@@ -765,6 +765,7 @@ MonoBehaviour:
   playerTransform: {fileID: 3901040745478538785}
   maxEpisodeTime: 30
   printReward: 0
+  printEndReward: 0
   printState: 0
 --- !u!114 &562014053209935406
 MonoBehaviour:
@@ -779,7 +780,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 17
+    VectorObservationSize: 19
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
