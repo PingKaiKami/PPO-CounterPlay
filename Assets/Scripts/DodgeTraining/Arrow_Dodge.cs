@@ -10,11 +10,11 @@ public class Arrow_Dodge : MonoBehaviour
     {
         player_Behavior = FindObjectOfType<Player_Behavior_Dodge>();
     }
-    void Update()
+    void FixedUpdate()
     {
         if (time < existTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
         }
         else
         {

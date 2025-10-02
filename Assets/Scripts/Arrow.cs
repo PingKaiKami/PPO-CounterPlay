@@ -3,30 +3,39 @@ using UnityEngine;
 public class Arrow : MonoBehaviour
 {
     public int damage;
-    public float existTime = 2f;
+    public float existTime = 3f;
     public GameObject target;
     private float time;
     private GameObject owner; 
+    private TrainingArea myArea;
     void Start()
     {
         time = 0f;
     }
     private void OnEnable()
     {
-        GameEvents.OnEpisodeEnd += SelfDestruct;
+        myArea = GetComponentInParent<TrainingArea>();
+
+        if (myArea != null)
+        {
+            myArea.OnEpisodeEnd += SelfDestruct;
+        }
     }
 
     private void OnDisable()
     {
-        GameEvents.OnEpisodeEnd -= SelfDestruct;
+        if (myArea != null)
+        {
+            myArea.OnEpisodeEnd -= SelfDestruct;
+        }
     }
     public void SetOwner(GameObject ownerObject)
     {
         this.owner = ownerObject;
     }
-    void Update()
+    void FixedUpdate()
     {
-        time += Time.deltaTime;
+        time += Time.fixedDeltaTime;
         if (time > existTime)
         {
             End();

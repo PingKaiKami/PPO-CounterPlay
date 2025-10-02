@@ -61,6 +61,8 @@ public abstract class Player_Behavior : MonoBehaviour
     private List<GameObject> _activeProjectiles = new List<GameObject>();
     public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
     private float _actionProgress = 0f;
+    private TrainingArea myArea;
+    private Transform projectileParent;
     public PlayerState GetCurrentState() => CurrentState;
     public bool IsAiming() => _isAiming;
     public float GetActionProgress() => _actionProgress;
@@ -74,6 +76,16 @@ public abstract class Player_Behavior : MonoBehaviour
         var renderer = GetComponentInChildren<Renderer>();
         if (renderer != null) mat = renderer.material;
         SetRandomTime();
+        myArea = GetComponentInParent<TrainingArea>();
+        if (myArea != null)
+        {
+            projectileParent = myArea.transform.Find("Projectile_Parent");
+            if (projectileParent == null)
+            {
+                projectileParent = new GameObject("Projectile_Parent").transform;
+                projectileParent.SetParent(myArea.transform);
+            }
+        }
     }
 
     protected void UpdateBehavior()
@@ -96,7 +108,7 @@ public abstract class Player_Behavior : MonoBehaviour
     }
     private void ProcessWaitingState()
     {
-        if (Random.value < waitingRecoveryChance * Time.deltaTime)
+        if (Random.value < waitingRecoveryChance * Time.fixedDeltaTime)
         {
             CurrentState = PlayerState.Idle;
         }
@@ -160,7 +172,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private void UpdateSmartAttackTimer()
     {
-        _waitTime += Time.deltaTime;
+        _waitTime += Time.fixedDeltaTime;
         if (_waitTime >= _randomWaitTime)
         {
             _forceSmartAttack = true;
@@ -184,7 +196,7 @@ public abstract class Player_Behavior : MonoBehaviour
         if (direction.sqrMagnitude > 0.01f)
         {
             var targetRotation = Quaternion.LookRotation(direction.normalized);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
         }
     }
 
@@ -230,11 +242,11 @@ public abstract class Player_Behavior : MonoBehaviour
         Color targetColor = Color.yellow;
         while (time < attackStartUpTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / attackStartUpTime;
             _actionProgress = t;
             mat.color = Color.Lerp(Color.white, targetColor, t);
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
 
         if (attackRange.IsEnemyInRange())
@@ -257,11 +269,11 @@ public abstract class Player_Behavior : MonoBehaviour
         targetColor = Color.white;
         while (time < attackRecoveryTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / attackRecoveryTime;
             _actionProgress = t;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
         CurrentState = PlayerState.Waiting;
     }
@@ -280,7 +292,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
         while (time < longAttackStartUpTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / longAttackStartUpTime;
             _actionProgress = t;
             mat.color = Color.Lerp(Color.white, targetColor, t);
@@ -292,13 +304,13 @@ public abstract class Player_Behavior : MonoBehaviour
             if (angleDifference > 5.0f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * aimingRotationSpeed);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * aimingRotationSpeed);
             }
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
 
         Vector3 spawnPos = transform.position + transform.forward;
-        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation);
+        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation, projectileParent);
         _activeProjectiles.Add(newArrow);
         var arrowComp = newArrow.GetComponent<Arrow>();
         if (arrowComp != null)
@@ -316,11 +328,11 @@ public abstract class Player_Behavior : MonoBehaviour
         _isAiming = false;
         while (time < longAttackRecoveryTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / longAttackRecoveryTime;
             _actionProgress = t;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
         _actionProgress = 0f;
         if (CurrentState == PlayerState.Recovery)

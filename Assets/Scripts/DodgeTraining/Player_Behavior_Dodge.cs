@@ -113,14 +113,14 @@ public class Player_Behavior_Dodge : MonoBehaviour
                         moveDirection = -directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
                         Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
                     }
                     else if (distanceToTarget > longAttackRange * 2)
                     {
                         moveDirection = directionToTarget;
                         rb.velocity = moveDirection.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
                         Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
                     }
                     else
                     {
@@ -128,7 +128,7 @@ public class Player_Behavior_Dodge : MonoBehaviour
                         Vector3 strafeDirection = clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
                         rb.velocity = strafeDirection * moveSpeed * 0.8f + new Vector3(0, rb.velocity.y, 0);
                         Quaternion targetRotation = Quaternion.LookRotation(strafeDirection.normalized);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
                         if (curState == PlayerState.Idle)
                         {
                             StartCoroutine(LongAttack());
@@ -155,14 +155,14 @@ public class Player_Behavior_Dodge : MonoBehaviour
 
         while (time < longAttackStartUpTime - 1)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / longAttackStartUpTime;
             mat.color = Color.Lerp(Color.white, targetColor, t);
             moveDirection = target.position - transform.position;
             moveDirection.y = 0f;
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-            yield return null;
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
+            yield return new WaitForFixedUpdate();
         }
         isAimed = false;
         while (time < longAttackStartUpTime)
@@ -172,11 +172,11 @@ public class Player_Behavior_Dodge : MonoBehaviour
                 moveDirection = target.position - transform.position;
                 moveDirection.y = 0f;
                 Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
                 isAimed = true;
             }
-            time += Time.deltaTime;
-            yield return null;
+            time += Time.fixedDeltaTime;
+            yield return new WaitForFixedUpdate();
         }
 
         GameObject newArrow = Instantiate(arrow, transform.position + moveDirection.normalized, arrow.transform.rotation);
@@ -190,10 +190,10 @@ public class Player_Behavior_Dodge : MonoBehaviour
         targetColor = Color.white;
         while (time < longAttackRecoveryTime)
         {
-            time += Time.deltaTime;
+            time += Time.fixedDeltaTime;
             float t = time / longAttackRecoveryTime;
             mat.color = Color.Lerp(Color.yellow, targetColor, t);
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
         if (curState == PlayerState.Recovery)
             curState = PlayerState.Waiting;
@@ -208,7 +208,7 @@ public class Player_Behavior_Dodge : MonoBehaviour
 
         rb.velocity = dashDir * dashSpeed;
         Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
 
         yield return new WaitForSeconds(dashDuration);
 

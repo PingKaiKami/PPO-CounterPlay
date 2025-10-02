@@ -45,6 +45,7 @@ public class Enemy_Agent : Agent
     private bool isRandom = false;
     private float attackRange = 2f;
     private float actionProgress;
+    private TrainingArea myArea;
 
     void Awake()
     {
@@ -97,6 +98,7 @@ public class Enemy_Agent : Agent
             player_Behavior = playerTransform.GetComponent<Player_Behavior>();
         }
         enemy_HP = GetComponent<HP>();
+        myArea = GetComponentInParent<TrainingArea>();
     }
 
     // 當一個訓練"回合"開始時被呼叫
@@ -211,54 +213,6 @@ public class Enemy_Agent : Agent
                 StartCoroutine(Attack(selectedAttack));
             }
         }
-        // 距離Reward
-        // float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
-
-        // float minDistance = 1;
-        // float maxDistance = attackRange;
-        // float bestDistance = Mathf.Max(attackRange - 0.5f, minDistance);
-        // float maxDistanceReward = 0.001f;
-
-        // float distanceScore;
-
-        // if (distanceToPlayer >= bestDistance)
-        // {
-        //     distanceScore = Mathf.InverseLerp(maxDistance, bestDistance, distanceToPlayer);
-        // }
-        // else
-        // {
-        //     distanceScore = Mathf.InverseLerp(minDistance, bestDistance, distanceToPlayer);
-        // }
-
-        // distanceScore = Mathf.Clamp01(distanceScore);
-
-        // float reward = distanceScore * maxDistanceReward;
-        // if (printState)
-        // {
-        //     Debug.Log("distanceReward : " + reward);    
-        // }
-
-        // AddReward(reward);
-
-        // 面對方向Reward
-        // Vector3 toPlayer = playerTransform.position - transform.position;
-        // toPlayer.y = 0;
-
-        // float alignment = Vector3.Dot(enemyObj.forward.normalized, toPlayer.normalized);
-
-        // if (alignment > 0)
-        // {
-        //     float aimingReward = alignment * (1.0f / (1.0f + distanceToPlayer));
-        //     if (printState)
-        //     {
-        //         Debug.Log("aimingReward : " + aimingReward * 0.005f);    
-        //     }
-        //     AddReward(aimingReward * 0.005f);
-        // }
-        // else
-        // {
-        //     AddReward(-0.005f);
-        // }
 
         // 閃避長距離攻擊Reward
         if (player_Behavior.IsAiming())
@@ -266,29 +220,26 @@ public class Enemy_Agent : Agent
             Vector3 playerPosition = playerTransform.position;
             Vector3 playerForward = playerTransform.forward;
 
-            RaycastHit hit;
-            float raycastDistance = 15f;
+            Vector3 directionToMe = (transform.position - playerPosition).normalized;
 
-            if (Physics.Raycast(playerPosition, playerForward, out hit, raycastDistance, -1, QueryTriggerInteraction.Ignore))
+            float alignment = Vector3.Dot(playerForward, directionToMe);
+
+            if (alignment > 0.95f)
             {
-                if (hit.collider.CompareTag("Enemy"))
-                {
-                    float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
-                    float penalty = -(1.0f / (1.0f + distanceToPlayer)) * (1.0f / (1.0f + distanceToPlayer)) * Time.deltaTime * player_Behavior.GetActionProgress();
+                float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
+                float penalty = -(1.0f / (1.0f + Mathf.Pow(distanceToPlayer, 2))) * player_Behavior.GetActionProgress() * 0.02f;
 
-                    AddReward(penalty);
-                    penalty1Sum += penalty;
-                }
+                AddReward(penalty);
+                penalty1Sum += penalty;
             }
             else
             {
                 float distanceToPlayer = Vector3.Distance(transform.position, playerPosition);
-                float reward = 1.0f / (1 + distanceToPlayer) * 1.0f / (1 + distanceToPlayer) * Time.deltaTime * player_Behavior.GetActionProgress();
+                float reward = 1.0f / (1.0f + Mathf.Pow(distanceToPlayer, 2)) * player_Behavior.GetActionProgress() * 0.02f;
 
                 AddReward(reward);
                 reward1Sum += reward;
             }
-            Debug.DrawRay(playerPosition, playerForward * raycastDistance, Color.yellow);
         }
         else
         {
@@ -318,19 +269,19 @@ public class Enemy_Agent : Agent
 
                 float alignment = Vector3.Dot(projectileDirection, directionToMe);
 
-                if (alignment > 0.95f)
+                if (alignment > 0.99f)
                 {
                     float distanceToProjectile = Vector3.Distance(transform.position, projectilePosition);
 
-                    float penalty = -(1.0f / (1.0f + Mathf.Pow(distanceToProjectile, 2))) * Time.deltaTime;
+                    float penalty = -(1.0f / (1.0f + Mathf.Pow(distanceToProjectile, 2))) * 0.02f;
 
                     AddReward(penalty);
-                    penalty2Sum += penalty; 
+                    penalty2Sum += penalty;
                 }
                 else
                 {
                     float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
-                    float reward = 1.0f / (1.0f + Mathf.Pow(distanceToPlayer, 2)) * Time.deltaTime;
+                    float reward = 1.0f / (1.0f + Mathf.Pow(distanceToPlayer, 2)) * 0.02f;
 
                     AddReward(reward);
                     reward2Sum += reward;
@@ -349,6 +300,104 @@ public class Enemy_Agent : Agent
         }
         
         AddReward(0.0001f);
+    }
+    private void OnDrawGizmos()
+    {
+        if (player_Behavior == null || !Application.isPlaying) return;
+
+        if (player_Behavior.IsAiming())
+        {
+            // --- 1. 定义锥形的参数 ---
+            float alignmentThreshold = 0.95f; // 你的阈值
+            float coneLength = 10f; // 锥形的长度，可以设得远一些
+
+            // --- 2. 将点积阈值转换为角度 ---
+            // a. alignment = cos(angle)，所以 angle = acos(alignment)
+            // b. Mathf.Acos 返回的是弧度，需要乘以 Mathf.Rad2Deg 转换为角度
+            // c. 这是“半角”，即中心线与锥形边缘的夹角
+            float coneHalfAngle = Mathf.Acos(alignmentThreshold) * Mathf.Rad2Deg;
+
+            // --- 3. 获取玩家的位置和朝向 ---
+            Vector3 playerPosition = playerTransform.position;
+            Vector3 playerForward = playerTransform.forward;
+            
+            // --- 4. 绘制“惩罚区”（内部的窄锥形） ---
+#if UNITY_EDITOR
+            // a. 设置颜色：半透明的红色，代表危险
+            UnityEditor.Handles.color = new Color(1, 0, 0, 0.2f);
+
+            // b. 计算锥形的一条起始边
+            Quaternion leftRayRotation = Quaternion.AngleAxis(-coneHalfAngle, Vector3.up);
+            Vector3 leftRayDirection = leftRayRotation * playerForward;
+            
+            // c. 使用 Handles.DrawSolidArc 绘制一个实心的扇形
+            //    参数：中心点，法线，起始方向，总角度，半径
+            UnityEditor.Handles.DrawSolidArc(playerPosition, Vector3.up, leftRayDirection, coneHalfAngle * 2, coneLength);
+#endif
+
+            // --- 5. (可选) 绘制“奖励区” ---
+            // 我们可以绘制一个更大的、表示“安全区”的扇形
+            // 例如，当 alignment < 0.99 时都是奖励区
+            // 我们可以绘制一个从 +/- coneHalfAngle 到 +/- 90 度的区域
+#if UNITY_EDITOR
+            // a. 设置颜色：半透明的绿色，代表安全/奖励
+            UnityEditor.Handles.color = new Color(0, 1, 0, 0.05f); // 更淡的颜色
+
+            // b. 绘制左侧的安全区
+            Quaternion farLeftRayRotation = Quaternion.AngleAxis(-90, Vector3.up);
+            Vector3 farLeftRayDirection = farLeftRayRotation * playerForward;
+            UnityEditor.Handles.DrawSolidArc(playerPosition, Vector3.up, farLeftRayDirection, 90 - coneHalfAngle, coneLength);
+
+            // c. 绘制右侧的安全区
+            // DrawSolidArc 需要起始方向，所以我们从右侧的起始边开始画
+            Quaternion rightRayRotation = Quaternion.AngleAxis(coneHalfAngle, Vector3.up);
+            Vector3 rightRayDirection = rightRayRotation * playerForward;
+            // ============================================
+
+            // 绘制从 +coneHalfAngle 度到 +90 度的区域
+            UnityEditor.Handles.DrawSolidArc(playerPosition, Vector3.up, rightRayDirection, 90 - coneHalfAngle, coneLength);
+#endif
+        }
+
+        IReadOnlyList<GameObject> activeProjectiles = player_Behavior.ActiveProjectiles;
+
+        if (activeProjectiles.Count > 0)
+        {
+            float alignmentThreshold = 0.99f;
+            float coneAngle = Mathf.Acos(alignmentThreshold) * Mathf.Rad2Deg;
+            float coneLength = 15f;
+
+            foreach (var projectile in activeProjectiles)
+            {
+                if (projectile == null) continue;
+                Rigidbody projectileRb = projectile.GetComponent<Rigidbody>();
+                
+                Vector3 projectilePosition = projectile.transform.position;
+                Vector3 projectileDirection = projectileRb.velocity.normalized;
+
+                // --- 绘制水平扇形 ---
+                Gizmos.color = Color.red;
+                
+                // 计算扇形的左右两条边
+                Quaternion leftRayRotation = Quaternion.AngleAxis(-coneAngle, Vector3.up);
+                Quaternion rightRayRotation = Quaternion.AngleAxis(coneAngle, Vector3.up);
+                Vector3 leftRayDirection = leftRayRotation * projectileDirection;
+                Vector3 rightRayDirection = rightRayRotation * projectileDirection;
+                
+                // 绘制边
+                Gizmos.DrawRay(projectilePosition, leftRayDirection * coneLength);
+                Gizmos.DrawRay(projectilePosition, rightRayDirection * coneLength);
+                
+                // 绘制中心线
+                Gizmos.DrawRay(projectilePosition, projectileDirection * coneLength);
+
+    #if UNITY_EDITOR
+                // 绘制半透明的扇形填充
+                UnityEditor.Handles.color = new Color(1, 0, 0, 0.1f);
+                UnityEditor.Handles.DrawSolidArc(projectilePosition, Vector3.up, leftRayDirection, coneAngle * 2, coneLength);
+    #endif
+            }
+        }
     }
     private float reward1Sum;
     private float penalty1Sum;
@@ -369,7 +418,7 @@ public class Enemy_Agent : Agent
 
         if (moveDirection != Vector3.zero)
         {
-            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.deltaTime * rotationSpeed);
+            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.fixedDeltaTime * rotationSpeed);
         }
     }
 
@@ -442,8 +491,10 @@ public class Enemy_Agent : Agent
     }
     private void EndAndCleanupEpisode()
     {
-        GameEvents.TriggerEpisodeEnd();
-
+        if (myArea != null)
+        {
+            myArea.TriggerEpisodeEnd();
+        }
         EndEpisode();
     }
 
@@ -468,14 +519,14 @@ public class Enemy_Agent : Agent
             Color targetColor = Color.red;
             while (time < step.startupTime)
             {
-                time += Time.deltaTime;
+                time += Time.fixedDeltaTime;
                 float t = time / step.startupTime;
                 actionProgress = t;
                 float movementProgress = step.movementCurve.Evaluate(t);
                 rb.MovePosition(Vector3.Lerp(startPosition, endPosition, movementProgress));
 
                 mat.color = Color.Lerp(oriColor, targetColor, t);
-                yield return null;
+                yield return new WaitForFixedUpdate();
             }
 
             Vector3 directionToPlayer = playerTransform.position - transform.position;
@@ -518,11 +569,11 @@ public class Enemy_Agent : Agent
 
             while (time < step.recoveryTime)
             {
-                time += Time.deltaTime;
+                time += Time.fixedDeltaTime;
                 float t = time / step.recoveryTime;
                 actionProgress = t;
                 mat.color = Color.Lerp(Color.green, targetColor, t);
-                yield return null;
+                yield return new WaitForFixedUpdate();
             }
 
             actionProgress = 0f;
@@ -609,9 +660,9 @@ public class Enemy_Agent : Agent
     {
         if (printReward)
         {
-            Debug.Log($"PlayerLongAttackReward : {-damageTaken / 100.0f}");
+            Debug.Log($"PlayerLongAttackReward : {-damageTaken / 50.0f}");
         }
-        AddReward(-damageTaken / 100.0f);
+        AddReward(-damageTaken / 50.0f);
     }
     public void OnPlayerAttackMissed()
     {
@@ -619,10 +670,10 @@ public class Enemy_Agent : Agent
     }
     public void OnPlayerLongAttackMissed()
     {
-        if (printReward)
-        {
-            Debug.Log("PlayerLongAttackMissReward : 0.2");
-        }
-        AddReward(0.2f);
+        // if (printReward)
+        // {
+        //     Debug.Log("PlayerLongAttackMissReward : 0.2");
+        // }
+        // AddReward(0.2f);
     }
 }

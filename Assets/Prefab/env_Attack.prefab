@@ -286,6 +286,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4876911871509266614}
+  - component: {fileID: 1590322304079843208}
   m_Layer: 0
   m_Name: env_Attack
   m_TagString: Untagged
@@ -312,6 +313,20 @@ Transform:
   - {fileID: 7645724039007971279}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1590322304079843208
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3141775289514025993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1a8b4640993092498cce62265a8e972, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemyInArea: {fileID: 7545922681025018124}
+  playerInArea: {fileID: 7251102566499771942}
 --- !u!1 &4692531983155203190
 GameObject:
   m_ObjectHideFlags: 0
@@ -690,7 +705,7 @@ MonoBehaviour:
     - stepName: Strong Attack 2
       startupTime: 1
       recoveryTime: 3
-      damage: 30
+      damage: 40
       attackRange: 3
       attackAngle: 120
       forwardMovement: 5
@@ -1426,7 +1441,7 @@ MonoBehaviour:
   attackRecoveryTime: 1
   arrowPrefab: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234,
     type: 3}
-  aimingRotationSpeed: 5
+  aimingRotationSpeed: 3
   longAttackDamage: 40
   longAttackStartUpTime: 2
   longAttackRecoveryTime: 1

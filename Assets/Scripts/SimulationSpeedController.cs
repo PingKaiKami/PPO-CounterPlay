@@ -4,12 +4,10 @@ public class SimulationSpeedController : MonoBehaviour
 {
     [Range(0.1f, 50f)]
     public float simulationSpeed = 1.0f;
-
-    void Update()
+     void Awake()
     {
-        if (Time.timeScale != simulationSpeed)
-        {
-            Time.timeScale = simulationSpeed;
-        }
+        Time.timeScale = simulationSpeed;
+        Application.targetFrameRate = 50;
     }
+
 }

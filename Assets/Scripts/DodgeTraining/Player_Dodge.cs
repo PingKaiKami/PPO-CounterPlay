@@ -10,7 +10,7 @@ public class Player_Dodge : Player_Behavior_Dodge
         attackRadius = attackRange.radius;
         mat = GetComponentInChildren<Renderer>().material;
     }
-    void Update()
+    void FixedUpdate()
     {
         Move();
         if (curState == PlayerState.Waiting)

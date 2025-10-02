@@ -146,7 +146,7 @@ public class Enemy_Dodge_Agent : Agent
 
         if (moveDirection != Vector3.zero)
         {
-            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.deltaTime * rotationSpeed);
+            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.fixedDeltaTime * rotationSpeed);
         }
     }
     
