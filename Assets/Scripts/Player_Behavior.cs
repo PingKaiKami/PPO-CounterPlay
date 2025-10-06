@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public abstract class Player_Behavior : MonoBehaviour
 {
     public enum PlayerState { Idle, StartUp, Recovery, Defending, Waiting, Dashing }
-    public enum TrainingMode { AutoTrace, OnlyAttack, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, Escape, Random, Manual }
+    public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, Manual }
 
     [Header("References")]
     public GameObject enemy;
@@ -43,7 +43,10 @@ public abstract class Player_Behavior : MonoBehaviour
     [Range(0.01f, 1.0f)]
     public float waitingRecoveryChance = 0.1f;
 
-    public PlayerState CurrentState { get; protected set; } = PlayerState.Idle;
+    [Header("Debug")]
+    public PlayerState CurrentState = PlayerState.Idle;
+
+    public bool printState = false;
 
     protected Rigidbody rb;
     protected AttackRange attackRange;
@@ -55,9 +58,7 @@ public abstract class Player_Behavior : MonoBehaviour
     private bool _canDash = true;
     private bool _isAiming = false;
     private int _clockwise = 0;
-    private float _waitTime = 0;
-    private float _randomWaitTime = 0;
-    private bool _forceSmartAttack = false;
+    private bool _forceAtkDashRanged = false;
     private List<GameObject> _activeProjectiles = new List<GameObject>();
     public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
     private float _actionProgress = 0f;
@@ -75,7 +76,6 @@ public abstract class Player_Behavior : MonoBehaviour
         if (attackRange != null) attackRadius = attackRange.radius;
         var renderer = GetComponentInChildren<Renderer>();
         if (renderer != null) mat = renderer.material;
-        SetRandomTime();
         myArea = GetComponentInParent<TrainingArea>();
         if (myArea != null)
         {
@@ -90,7 +90,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     protected void UpdateBehavior()
     {
-        if (CurrentState == PlayerState.StartUp || CurrentState == PlayerState.Recovery || _isDashing)
+        if (CurrentState == PlayerState.StartUp || _isDashing)
         {
             return;
         }
@@ -130,7 +130,6 @@ public abstract class Player_Behavior : MonoBehaviour
                 return (orientation.forward * v + orientation.right * h).normalized;
 
             case TrainingMode.AutoTrace:
-            case TrainingMode.OnlyAttack:
                 return directionToTarget;
 
             case TrainingMode.AttackAndRun:
@@ -142,13 +141,25 @@ public abstract class Player_Behavior : MonoBehaviour
 
             case TrainingMode.SmartAttack:
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
-                if (enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery || _forceSmartAttack)
+                if (enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
                     return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
                 else
                     return GetDefensiveMoveDirection(distanceToTarget, directionToTarget);
 
             case TrainingMode.LongRangeAttack:
                 return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
+
+            case TrainingMode.DashAtkRanged:
+                return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
+
+            case TrainingMode.AtkDashRanged:
+                if (_forceAtkDashRanged)
+                {
+                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                }
+                else {
+                    return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
+                }
 
             case TrainingMode.Escape:
                 return -directionToTarget;
@@ -160,7 +171,6 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private Vector3 GetDefensiveMoveDirection(float distance, Vector3 direction)
     {
-        UpdateSmartAttackTimer();
         return distance < 3f ? -direction : GetStrafeDirection(direction);
     }
 
@@ -168,17 +178,6 @@ public abstract class Player_Behavior : MonoBehaviour
     {
         _clockwise = (_clockwise != 0) ? _clockwise : (Random.value < 0.5f ? 1 : -1);
         return _clockwise * Vector3.Cross(Vector3.up, directionToTarget.normalized);
-    }
-
-    private void UpdateSmartAttackTimer()
-    {
-        _waitTime += Time.fixedDeltaTime;
-        if (_waitTime >= _randomWaitTime)
-        {
-            _forceSmartAttack = true;
-            _waitTime = 0f;
-            SetRandomTime();
-        }
     }
 
     private void ApplyMovement(Vector3 direction)
@@ -202,7 +201,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private void TriggerActions(Vector3 moveDir)
     {
-        if (CurrentState != PlayerState.Idle && CurrentState != PlayerState.Waiting) return;
+        if (CurrentState != PlayerState.Idle && CurrentState != PlayerState.Recovery && CurrentState != PlayerState.Waiting) return;
 
         if (curMode == TrainingMode.Manual)
         {
@@ -212,19 +211,129 @@ public abstract class Player_Behavior : MonoBehaviour
         }
         else // AI Trigger Logic
         {
-            float distanceToTarget = Vector3.Distance(transform.position, target.position);
+            Vector3 directionToTarget = target.position - transform.position;
+            directionToTarget.y = 0;
+            float distanceToTarget = directionToTarget.magnitude;
 
-            if (curMode == TrainingMode.AutoTrace || curMode == TrainingMode.OnlyAttack)
+            if (curMode == TrainingMode.AutoTrace)
             {
-                if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+                }
+
             }
-            else if (curMode == TrainingMode.AttackAndRun || curMode == TrainingMode.AttackAndDash || curMode == TrainingMode.SmartAttack)
+            else if (curMode == TrainingMode.AttackAndRun)
             {
-                if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
+                }
+
+            }
+            else if (curMode == TrainingMode.AttackAndDash)
+            {
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange))
+                    {
+                        StartCoroutine(Attack());
+                    }
+                }
+                else
+                {
+                    if (_canDash)
+                    {
+                        StartCoroutine(Dash(-directionToTarget));
+                    }
+                }
+            }
+            else if (curMode == TrainingMode.SmartAttack)
+            {
+                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
+                if (CurrentState == PlayerState.Idle && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange))
+                    {
+                        StartCoroutine(Attack());
+                    }
+                    else
+                    {
+                        if (_canDash)
+                        {
+                            StartCoroutine(Dash(directionToTarget));
+                        }
+                    }
+                }
+                else
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange) && _canDash)
+                    {
+                        StartCoroutine(Dash(-directionToTarget));
+                    }
+                }
             }
             else if (curMode == TrainingMode.LongRangeAttack)
             {
-                if (distanceToTarget >= longAttackRange) StartCoroutine(LongAttack());
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget >= longAttackRange) StartCoroutine(LongAttack());
+                }
+
+            }
+            else if (curMode == TrainingMode.DashAtkRanged)
+            {
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget >= longAttackRange)
+                    {
+                        if (Random.value > 0.5f && !_isDashing)
+                        {
+                            StartCoroutine(LongAttack());
+                        }
+                        else
+                        {
+                            if (_canDash)
+                            {
+                                StartCoroutine(Dash(directionToTarget, isDirectAttack: true));
+                            }
+                        }
+                    }
+                }
+
+            }
+            else if (curMode == TrainingMode.AtkDashRanged)
+            {
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget >= longAttackRange)
+                    {
+                        if (Random.value > 0.5f && !_forceAtkDashRanged)
+                        {
+                            StartCoroutine(LongAttack());
+                        }
+                        else
+                        {
+                            _forceAtkDashRanged = true;
+                        }
+                    }
+                    else
+                    {
+                        if (distanceToTarget <= (attackRadius + attackBufferRange))
+                        {
+                            StartCoroutine(Attack());
+                        }
+                    }
+                }
+                else
+                {
+                    if (_forceAtkDashRanged && _canDash)
+                    {
+                        StartCoroutine(Dash(-directionToTarget));
+                        _forceAtkDashRanged = false;
+                    }
+                }
+                
             }
             else if (curMode == TrainingMode.OnlyDash && _canDash)
             {
@@ -339,11 +448,12 @@ public abstract class Player_Behavior : MonoBehaviour
             CurrentState = PlayerState.Waiting;
     }
 
-    private IEnumerator Dash(Vector3 direction)
+    private IEnumerator Dash(Vector3 direction, bool isDirectAttack = false)
     {
         _isDashing = true;
         _canDash = false;
         Vector3 dashDir = direction.normalized;
+        transform.forward = dashDir;
         if (dashDir == Vector3.zero && orientation != null) dashDir = orientation.forward;
         else if (dashDir == Vector3.zero) dashDir = transform.forward;
 
@@ -351,6 +461,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
         yield return new WaitForSeconds(dashDuration);
         _isDashing = false;
+        if (isDirectAttack) StartCoroutine(Attack());
         rb.velocity = Vector3.zero;
         yield return new WaitForSeconds(dashCooldown);
         _canDash = true;
@@ -362,19 +473,16 @@ public abstract class Player_Behavior : MonoBehaviour
         var availableModes = new List<TrainingMode>();
         foreach (TrainingMode mode in allModes)
         {
-            if (mode != TrainingMode.Manual && mode != TrainingMode.Random)
+            if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape)
             {
                 availableModes.Add(mode);
             }
         }
         curMode = availableModes[Random.Range(0, availableModes.Count)];
-        Debug.Log($"Player mode set to: {curMode}");
+        if(printState)
+            Debug.Log($"Player mode set to: {curMode}");
     }
 
-    private void SetRandomTime()
-    {
-        _randomWaitTime = Random.Range(0, 3);
-    }
 
     public void DeregisterProjectile(GameObject projectile)
     {

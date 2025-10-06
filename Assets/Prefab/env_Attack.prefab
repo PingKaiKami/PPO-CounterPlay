@@ -1429,10 +1429,10 @@ MonoBehaviour:
   enemy: {fileID: 5135639864949769572}
   target: {fileID: 5506724503562418699}
   orientation: {fileID: 1329288951844610101}
-  curMode: 6
+  curMode: 9
   moveSpeed: 5
   rotationSpeed: 10
-  dashSpeed: 30
+  dashSpeed: 20
   dashDuration: 0.1
   dashCooldown: 1
   damage: 15
@@ -1449,6 +1449,8 @@ MonoBehaviour:
   arrowSpeed: 5
   strafeSpeed: 1
   waitingRecoveryChance: 0.99
+  CurrentState: 0
+  printState: 0
 --- !u!114 &3376494440706705712
 MonoBehaviour:
   m_ObjectHideFlags: 0

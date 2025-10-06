@@ -14,7 +14,7 @@ behaviors:
       beta_schedule: linear
       epsilon_schedule: linear
     network_settings:
-      normalize: true
+      normalize: false
       hidden_units: 256
       num_layers: 3
       vis_encode_type: simple
@@ -36,7 +36,7 @@ behaviors:
     init_path: null
     keep_checkpoints: 5
     checkpoint_interval: 500000
-    max_steps: 30000000
+    max_steps: 20000000
     time_horizon: 256
     summary_freq: 50000
     threaded: false
@@ -59,14 +59,14 @@ engine_settings:
   time_scale: 1.0
   target_frame_rate: -1
   capture_frame_rate: 0
-  no_graphics: false
+  no_graphics: true
 environment_parameters: null
 checkpoint_settings:
-  run_id: EnemyAI_Attack_Run_33
+  run_id: EnemyAI_Attack_Run_34-2
   initialize_from: null
   load_model: false
   resume: false
-  force: true
+  force: false
   train_model: false
   inference: false
   results_dir: results
