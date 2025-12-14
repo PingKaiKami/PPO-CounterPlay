@@ -1,13 +1,15 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 
 public abstract class Player_Behavior : MonoBehaviour
 {
-    public enum PlayerState { Idle, StartUp, Recovery, Defending, Waiting, Dashing }
-    public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, Manual }
+    public enum PlayerState { Idle, StartUp, Aiming, Recovery, Defending, Waiting, Dashing }
+    public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, GAIL, Manual }
 
     [Header("References")]
+    [SerializeField] private ThirdPersonCamera thirdPersonCamera; 
     public GameObject enemy;
     public Transform target;
     public Transform orientation;
@@ -30,9 +32,11 @@ public abstract class Player_Behavior : MonoBehaviour
 
     [Header("LongAttack")]
     public GameObject arrowPrefab;
-    public float aimingRotationSpeed;
+    public float aimingMoveSpeed = 1f;
+    public float aimingRotationSpeed = 3f;
     public int longAttackDamage = 20;
-    public float longAttackStartUpTime = 2f;
+    public float longAttackStartUpBasicTime = 2f; // actually minus 1 (for manual)
+    public float longAttackStartUpBonusTime = 3f; // extra 0 ~ bonus startUpTime
     public float longAttackRecoveryTime = 1f;
     public float longAttackRange = 5f;
     public float arrowSpeed = 1f;
@@ -51,17 +55,21 @@ public abstract class Player_Behavior : MonoBehaviour
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;
-    protected Material mat;
-
+    protected Material mat_player;
+    protected Material mat_line;
     private Vector3 _moveDirection;
+    private Vector3 _rotateDirection;
     private bool _isDashing = false;
     private bool _canDash = true;
     private bool _isAiming = false;
     private int _clockwise = 0;
     private bool _forceAtkDashRanged = false;
+    private bool isRandom = false;
+    private bool isGail = false;
     private List<GameObject> _activeProjectiles = new List<GameObject>();
     public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
     private float _actionProgress = 0f;
+    private LineRenderer aimLine;
     private TrainingArea myArea;
     private Transform projectileParent;
     public PlayerState GetCurrentState() => CurrentState;
@@ -71,14 +79,23 @@ public abstract class Player_Behavior : MonoBehaviour
 
     protected void Initialize()
     {
+        aimLine = GetComponent<LineRenderer>();
+        if (aimLine != null)
+        {
+            aimLine.positionCount = 2;
+            aimLine.enabled = false;
+            mat_line = aimLine.material;
+        }
         rb = GetComponent<Rigidbody>();
         attackRange = GetComponentInChildren<AttackRange>();
         if (attackRange != null) attackRadius = attackRange.radius;
-        var renderer = GetComponentInChildren<Renderer>();
-        if (renderer != null) mat = renderer.material;
+        var renderer = GetComponentInChildren<MeshRenderer>();
+        if (renderer != null) mat_player = renderer.material;
         myArea = GetComponentInParent<TrainingArea>();
         if (myArea != null)
         {
+            myArea.OnEpisodeEnd += ResetStateToIdle;
+
             projectileParent = myArea.transform.Find("Projectile_Parent");
             if (projectileParent == null)
             {
@@ -86,25 +103,328 @@ public abstract class Player_Behavior : MonoBehaviour
                 projectileParent.SetParent(myArea.transform);
             }
         }
+        if (curMode == TrainingMode.Random)
+        {
+            isRandom = true;
+            SetRandomTrainingMode();
+        }
+        else if(curMode == TrainingMode.GAIL)
+        {
+            isGail = true;
+            SetRandomTrainingMode();
+        }
+    }
+    public void ResetStateToIdle()
+    {
+        StopAllCoroutines();
+
+        if (isRandom || isGail)
+        {
+            SetRandomTrainingMode();
+        }
+
+        CurrentState = PlayerState.Idle;
+        _isDashing = false;
+        _canDash = true;
+        _isAiming = false;
+        transform.localPosition = new Vector3(0, 0.5f, 0);
+
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        if (mat_player != null)
+        {
+            mat_player.color = Color.white;
+        }
+    }
+    private void OnDestroy()
+    {
+        if (myArea != null)
+        {
+            myArea.OnEpisodeEnd -= ResetStateToIdle;
+        }
     }
 
     protected void UpdateBehavior()
     {
-        if (CurrentState == PlayerState.StartUp || _isDashing)
+        if (curMode == TrainingMode.GAIL) return;
+
+        if (CurrentState == PlayerState.StartUp || _isDashing) return;
+
+        // A. 思考 (問大腦)
+        AI_Intent intent = GetLogicIntent(curMode);
+
+        // B. 執行 (動身體)
+        ExecuteAgentAction(intent.moveDirection, intent.lookDirection, intent.wantsDash, intent.wantsDashAttack, intent.wantsAttack, intent.wantsLongAttack);
+
+
+        // _moveDirection = CalculateMoveDirection();
+        // _rotateDirection = CalculateRotateDirection();
+
+        // ApplyMovement(_moveDirection);
+        // ApplyRotation(_rotateDirection);   
+
+        // if (CurrentState == PlayerState.Aiming)
+        // {
+        //     return;
+        // }
+
+        // if (CurrentState == PlayerState.Waiting)
+        // {
+        //     ProcessWaitingState();
+        //     return;
+        // }
+        // TriggerActions(_moveDirection);
+    }
+    public struct AI_Intent
+    {
+        public Vector3 moveDirection;
+        public Vector3 lookDirection;
+        public bool wantsAttack;
+        public bool wantsDash;
+        public bool wantsDashAttack;
+        public bool wantsLongAttack;
+    }
+
+    public AI_Intent GetLogicIntent(TrainingMode mode)
+    {
+        AI_Intent intent = new AI_Intent();
+        
+        // --- 基礎資訊 ---
+        Vector3 directionToTarget = Vector3.zero;
+        float distanceToTarget = 0f;
+        if (target != null)
         {
-            return;
+            directionToTarget = target.position - transform.position;
+            directionToTarget.y = 0;
+            distanceToTarget = directionToTarget.magnitude;
         }
 
-        _moveDirection = CalculateMoveDirection();
-        ApplyMovement(_moveDirection);
-        ApplyRotation(_moveDirection);
+        // =========================================================
+        // Part 1: 移動意圖 (Movement)
+        // =========================================================
+        switch (mode)
+        {
+            case TrainingMode.Manual:
+                float h = Input.GetAxisRaw("Horizontal");
+                float v = Input.GetAxisRaw("Vertical");
+                intent.moveDirection = (orientation.forward * v + orientation.right * h).normalized;
+                break;
+
+            case TrainingMode.AutoTrace:
+                intent.moveDirection = directionToTarget;
+                break;
+
+            case TrainingMode.AttackAndRun:
+            case TrainingMode.AttackAndDash:
+                if (CurrentState == PlayerState.Idle)
+                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                else
+                    intent.moveDirection = (distanceToTarget < 3f) ? -directionToTarget : GetStrafeDirection(directionToTarget);
+                break;
+
+            case TrainingMode.SmartAttack:
+                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
+                bool isRecovery = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery);
+                if (isRecovery)
+                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                else
+                    intent.moveDirection = GetDefensiveMoveDirection(distanceToTarget, directionToTarget);
+                break;
+
+            case TrainingMode.LongRangeAttack:
+            case TrainingMode.DashAtkRanged:
+                intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
+                                    (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
+                                    GetStrafeDirection(directionToTarget);
+                break;
+
+            case TrainingMode.AtkDashRanged:
+                if (_forceAtkDashRanged)
+                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                else
+                    intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
+                                        (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
+                                        GetStrafeDirection(directionToTarget);
+                break;
+
+            case TrainingMode.Escape:
+            case TrainingMode.OnlyDash:
+                intent.moveDirection = -directionToTarget;
+                break;
+
+            default:
+                intent.moveDirection = Vector3.zero;
+                break;
+        }
+
+        // =========================================================
+        // Part 2: 旋轉意圖 (Rotation) - 補回原本的邏輯
+        // =========================================================
+        if (mode == TrainingMode.Manual)
+        {
+            // 手動模式：如果有在瞄準(例如按住右鍵)，看滑鼠；否則看移動方向
+            if (_isAiming || Input.GetMouseButton(1)) // 這裡加強判斷
+            {
+                Vector3 mouseWorldPos = GetMouseWorldPosition();
+                thirdPersonCamera.enabled = false;
+                if (mouseWorldPos != Vector3.zero)
+                    intent.lookDirection = mouseWorldPos - transform.position;
+                else
+                    intent.lookDirection = intent.moveDirection;
+            }
+            else
+            {
+                thirdPersonCamera.enabled = true;
+                intent.lookDirection = intent.moveDirection;
+            }
+        }
+        else
+        {
+            // AI 模式：預設看移動方向
+            intent.lookDirection = intent.moveDirection;
+
+            // 特殊情況：如果正在瞄準或攻擊，強制看敵人
+            if (CurrentState == PlayerState.Aiming || _isAiming)
+            {
+                intent.lookDirection = directionToTarget;
+            }
+            else if (distanceToTarget > 0.1f) // 確保有目標
+            {
+                // 如果我們站著不動但想攻擊，或是正在 Strafe，通常還是要看著敵人
+                // 這裡可以根據你的需求調整：
+                // 如果是 LongRangeAttack，不管有沒有動，最好都看著敵人
+                if (mode == TrainingMode.LongRangeAttack || mode == TrainingMode.DashAtkRanged || mode == TrainingMode.AtkDashRanged)
+                {
+                    intent.lookDirection = directionToTarget;
+                }
+            }
+        }
+
+        // =========================================================
+        // Part 3: 動作意圖 (Action)
+        // =========================================================
+        bool canAct = (CurrentState == PlayerState.Idle || CurrentState == PlayerState.Recovery || CurrentState == PlayerState.Waiting);
+        
+        // Manual 優先處理
+        if (mode == TrainingMode.Manual)
+        {
+            if (Input.GetMouseButtonDown(0)) intent.wantsAttack = true;
+            if (Input.GetMouseButtonDown(1)) intent.wantsLongAttack = true; 
+            if (Input.GetKeyDown(KeyCode.LeftShift)) intent.wantsDash = true;
+            return intent;
+        }
+
+        if (!canAct) return intent;
+
+        switch (mode)
+        {
+            case TrainingMode.AutoTrace:
+            case TrainingMode.AttackAndRun:
+                if (CurrentState == PlayerState.Idle && distanceToTarget <= (attackRadius + attackBufferRange)) 
+                    intent.wantsAttack = true;
+                break;
+
+            case TrainingMode.AttackAndDash:
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange)) intent.wantsAttack = true;
+                }
+                else if (_canDash) intent.wantsDash = true;
+                break;
+
+            case TrainingMode.SmartAttack:
+                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
+                if (CurrentState == PlayerState.Idle && enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange)) intent.wantsAttack = true;
+                    else if (_canDash) intent.wantsDash = true;
+                }
+                else
+                {
+                    if (distanceToTarget <= (attackRadius + attackBufferRange) && _canDash) intent.wantsDash = true;
+                }
+                break;
+
+            case TrainingMode.LongRangeAttack:
+                if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange) 
+                    intent.wantsLongAttack = true;
+                break;
+
+            case TrainingMode.DashAtkRanged:
+                if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange)
+                {
+                    if (Random.value > 0.5f && !_isDashing) intent.wantsLongAttack = true;
+                    else if (_canDash) intent.wantsDashAttack = true;
+                }
+                break;
+
+            case TrainingMode.AtkDashRanged:
+                if (CurrentState == PlayerState.Idle)
+                {
+                    if (distanceToTarget >= longAttackRange)
+                    {
+                        if (Random.value > 0.5f && !_forceAtkDashRanged) intent.wantsLongAttack = true;
+                        else _forceAtkDashRanged = true;
+                    }
+                    else if (distanceToTarget <= (attackRadius + attackBufferRange))
+                    {
+                        intent.wantsAttack = true;
+                    }
+                }
+                else if (_forceAtkDashRanged && _canDash)
+                {
+                    intent.wantsDash = true;
+                    _forceAtkDashRanged = false;
+                }
+                break;
+
+            case TrainingMode.OnlyDash:
+                if (_canDash) intent.wantsDash = true;
+                break;
+        }
+
+        return intent;
+    }
+    // 增加一個供 Agent 執行動作的接口
+    public void ExecuteAgentAction(Vector3 moveDir, Vector3 lookDir, bool dash, bool dashAtk, bool atk, bool longAtk)
+    {
+        if(CurrentState == PlayerState.StartUp || _isDashing) 
+            return;
+        // 1. 執行移動
+        _moveDirection = moveDir; 
+        ApplyMovement(moveDir);
+
+        // 2. 【修改點】執行旋轉
+        // 如果 lookDir 是零向量(例如 Agent 沒傳)，就用移動方向代替，避免轉向 (0,0,0)
+        Vector3 finalLookDir = (lookDir.sqrMagnitude > 0.001f) ? lookDir : moveDir;
+        ApplyRotation(finalLookDir);
 
         if (CurrentState == PlayerState.Waiting)
         {
             ProcessWaitingState();
             return;
         }
-        TriggerActions(_moveDirection);
+        // 3. 執行動作
+        if (CurrentState == PlayerState.Idle || CurrentState == PlayerState.Recovery)
+        {
+            if (dash && _canDash) 
+            {
+                Vector3 finalDashDir = (moveDir == Vector3.zero) ? transform.forward : moveDir;
+                if(curMode == TrainingMode.AtkDashRanged) finalDashDir = -finalDashDir;
+                StartCoroutine(Dash(finalDashDir)); 
+            }
+            else if(dashAtk && _canDash)
+            {
+                Vector3 finalDashDir = (finalLookDir == Vector3.zero) ? transform.forward : finalLookDir;
+                StartCoroutine(Dash(finalDashDir, true)); 
+            }
+            else if (atk) StartCoroutine(Attack());
+            else if (longAtk) StartCoroutine(LongAttack());
+        }
     }
     private void ProcessWaitingState()
     {
@@ -157,15 +477,53 @@ public abstract class Player_Behavior : MonoBehaviour
                 {
                     return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
                 }
-                else {
+                else
+                {
                     return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
                 }
 
             case TrainingMode.Escape:
+            case TrainingMode.OnlyDash:
                 return -directionToTarget;
 
             default:
                 return Vector3.zero;
+        }
+    }
+    
+    private Vector3 CalculateRotateDirection()
+    {
+        switch (curMode)
+        {
+            case TrainingMode.Manual:
+                if (_isAiming)
+                {
+                    Vector3 mouseWorldPos = GetMouseWorldPosition();
+
+                    thirdPersonCamera.enabled = false;
+                    if (mouseWorldPos != Vector3.zero)
+                    {
+                        return mouseWorldPos - transform.position;
+                    }
+                    else
+                    {
+                        return _moveDirection;
+                    }
+                }
+                else
+                {
+                    thirdPersonCamera.enabled = true;
+                    return _moveDirection;
+                }
+            default:
+                if (_isAiming)
+                {
+                    return Vector3.zero;
+                }
+                else
+                {
+                    return _moveDirection;
+                }
         }
     }
 
@@ -187,16 +545,44 @@ public abstract class Player_Behavior : MonoBehaviour
             rb.velocity = Vector3.zero;
             return;
         }
-        rb.velocity = direction.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);
+        if (_isAiming)
+        {
+            rb.velocity = direction.normalized * aimingMoveSpeed + new Vector3(0, rb.velocity.y, 0);
+        }
+        else
+        {
+            rb.velocity = direction.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);    
+        }
     }
 
     private void ApplyRotation(Vector3 direction)
     {
+        direction.y = 0f; 
+
         if (direction.sqrMagnitude > 0.01f)
         {
             var targetRotation = Quaternion.LookRotation(direction.normalized);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * rotationSpeed);
         }
+    }
+    private Vector3 GetMouseWorldPosition()
+    {
+        // 1. 從主攝像機創建一條射線，射向滑鼠在屏幕上的位置
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        // 2. 創建一個與角色腳底等高的水平虛擬平面
+        // Plane 的第一個參數是平面的法線方向（Y軸向上），第二個參數是平面上的一個點（角色的位置）
+        Plane groundPlane = new Plane(Vector3.up, transform.position);
+
+        // 3. 計算射線與平面的交點
+        if (groundPlane.Raycast(ray, out float distance))
+        {
+            // 如果射線擊中了平面，返回交點的坐標
+            return ray.GetPoint(distance);
+        }
+
+        // 如果射線沒有擊中平面（例如，滑鼠指向天空），返回一個無效值
+        return Vector3.zero; 
     }
 
     private void TriggerActions(Vector3 moveDir)
@@ -206,6 +592,7 @@ public abstract class Player_Behavior : MonoBehaviour
         if (curMode == TrainingMode.Manual)
         {
             if (Input.GetMouseButtonDown(0)) StartCoroutine(Attack());
+            if (Input.GetMouseButtonDown(1)) StartCoroutine(ManualLongAttack());
             if (Input.GetKeyDown(KeyCode.LeftShift) && _canDash) StartCoroutine(Dash(moveDir));
             // Defending logic...
         }
@@ -354,7 +741,7 @@ public abstract class Player_Behavior : MonoBehaviour
             time += Time.fixedDeltaTime;
             float t = time / attackStartUpTime;
             _actionProgress = t;
-            mat.color = Color.Lerp(Color.white, targetColor, t);
+            mat_player.color = Color.Lerp(Color.white, targetColor, t);
             yield return new WaitForFixedUpdate();
         }
 
@@ -381,7 +768,7 @@ public abstract class Player_Behavior : MonoBehaviour
             time += Time.fixedDeltaTime;
             float t = time / attackRecoveryTime;
             _actionProgress = t;
-            mat.color = Color.Lerp(Color.yellow, targetColor, t);
+            mat_player.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return new WaitForFixedUpdate();
         }
         CurrentState = PlayerState.Waiting;
@@ -389,7 +776,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private IEnumerator LongAttack()
     {
-        CurrentState = PlayerState.StartUp;
+        CurrentState = PlayerState.Aiming;
         _actionProgress = 0f;
         rb.velocity = Vector3.zero;
         float time = 0f;
@@ -398,18 +785,36 @@ public abstract class Player_Behavior : MonoBehaviour
         Vector3 initialDirection = target.position - transform.position;
         initialDirection.y = 0f;
         transform.rotation = Quaternion.LookRotation(initialDirection.normalized);
-
-        while (time < longAttackStartUpTime)
+        while (time < longAttackStartUpBasicTime - 1)
         {
             time += Time.fixedDeltaTime;
-            float t = time / longAttackStartUpTime;
+            float t = time / (longAttackStartUpBasicTime - 1) / 2f;
             _actionProgress = t;
-            mat.color = Color.Lerp(Color.white, targetColor, t);
+            mat_player.color = Color.Lerp(Color.white, targetColor, t);
             Vector3 currentDirectionToTarget = target.position - transform.position;
             currentDirectionToTarget.y = 0f;
 
             float angleDifference = Vector3.Angle(transform.forward, currentDirectionToTarget);
+            if (angleDifference > 5.0f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * aimingRotationSpeed);
+            }
+            yield return new WaitForFixedUpdate();
+        }
+        float bonusTime = Random.Range(0, longAttackStartUpBonusTime);
+        time = 0f;
+        while (time < bonusTime)
+        {
+            time += Time.fixedDeltaTime;
+            // maintain the t's increase rate as basic
+            float t = Mathf.Min(time / (longAttackStartUpBasicTime - 1) / 2f + 0.5f, 1);
+            _actionProgress = t;
+            mat_player.color = Color.Lerp(Color.white, targetColor, t);
+            Vector3 currentDirectionToTarget = target.position - transform.position;
+            currentDirectionToTarget.y = 0f;
 
+            float angleDifference = Vector3.Angle(transform.forward, currentDirectionToTarget);
             if (angleDifference > 5.0f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
@@ -440,12 +845,98 @@ public abstract class Player_Behavior : MonoBehaviour
             time += Time.fixedDeltaTime;
             float t = time / longAttackRecoveryTime;
             _actionProgress = t;
-            mat.color = Color.Lerp(Color.yellow, targetColor, t);
+            mat_player.color = Color.Lerp(Color.yellow, targetColor, t);
             yield return new WaitForFixedUpdate();
         }
         _actionProgress = 0f;
         if (CurrentState == PlayerState.Recovery)
             CurrentState = PlayerState.Waiting;
+    }
+
+    private IEnumerator ManualLongAttack()
+    {
+        CurrentState = PlayerState.Aiming;
+        _actionProgress = 0f;
+        rb.velocity = Vector3.zero;
+        float time = 0f;
+        Color targetColor = Color.yellow;
+        Color lineTargetColor = Color.red;
+        _isAiming = true;
+        while (time < longAttackStartUpBasicTime)
+        {
+            time += Time.fixedDeltaTime;
+            float t = time / longAttackStartUpBasicTime;
+            _actionProgress = t;
+            mat_player.color = Color.Lerp(Color.white, targetColor, t);
+            mat_line.color = Color.Lerp(Color.white, lineTargetColor, t);
+
+            // shoot
+            if (Input.GetMouseButtonUp(1))
+            {
+                break;
+            }
+            UpdateAimLine();
+
+            yield return new WaitForFixedUpdate();
+        }
+
+        while (Input.GetMouseButton(1))
+        {
+            _actionProgress = 1;
+            UpdateAimLine();
+
+            yield return new WaitForFixedUpdate();
+        }
+        Vector3 spawnPos = transform.position + transform.forward;
+        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation, projectileParent);
+        _activeProjectiles.Add(newArrow);
+        var arrowComp = newArrow.GetComponent<Arrow>();
+        if (arrowComp != null)
+        {
+            arrowComp.damage = longAttackDamage;
+            arrowComp.target = enemy;
+            arrowComp.SetOwner(gameObject);
+        }
+        newArrow.GetComponent<Rigidbody>().velocity = transform.forward * arrowSpeed * _actionProgress;
+
+        CurrentState = PlayerState.Recovery;
+        _actionProgress = 0f;
+        time = 0f;
+        targetColor = Color.white;
+        _isAiming = false;
+        if (aimLine != null && aimLine.enabled)
+        {
+            aimLine.enabled = false;
+            mat_line.color = Color.white;
+        }
+        while (time < longAttackRecoveryTime)
+        {
+            time += Time.fixedDeltaTime;
+            float t = time / longAttackRecoveryTime;
+            _actionProgress = t;
+            mat_player.color = Color.Lerp(Color.yellow, targetColor, t);
+            yield return new WaitForFixedUpdate();
+        }
+        _actionProgress = 0f;
+        if (CurrentState == PlayerState.Recovery)
+            CurrentState = PlayerState.Waiting;
+    }
+    private void UpdateAimLine()
+    {
+        if (aimLine == null) return;
+
+        if (!aimLine.enabled)
+        {
+            aimLine.enabled = true;
+        }
+
+        Vector3 rayStartPoint = transform.position + Vector3.up * 0.5f;
+        float rayLength = 15.0f;
+
+        Vector3 rayEndPoint = rayStartPoint + transform.forward * rayLength;
+
+        aimLine.SetPosition(0, rayStartPoint);
+        aimLine.SetPosition(1, rayEndPoint);
     }
 
     private IEnumerator Dash(Vector3 direction, bool isDirectAttack = false)
@@ -471,13 +962,23 @@ public abstract class Player_Behavior : MonoBehaviour
     {
         var allModes = System.Enum.GetValues(typeof(TrainingMode));
         var availableModes = new List<TrainingMode>();
-        foreach (TrainingMode mode in allModes)
+        if (isRandom)
         {
-            if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape)
+            foreach (TrainingMode mode in allModes)
             {
-                availableModes.Add(mode);
+                // exclude escape, onlydash, DashAtkRanged, AtkDashRanged mode
+                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged)
+                {
+                    availableModes.Add(mode);
+                }
             }
         }
+        else if (isGail)
+        {
+            availableModes.Add(TrainingMode.DashAtkRanged);
+            availableModes.Add(TrainingMode.AtkDashRanged);
+        }
+        
         curMode = availableModes[Random.Range(0, availableModes.Count)];
         if(printState)
             Debug.Log($"Player mode set to: {curMode}");

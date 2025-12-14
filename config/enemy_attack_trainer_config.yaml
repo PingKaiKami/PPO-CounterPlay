@@ -4,7 +4,7 @@ behaviors:
     hyperparameters:
       batch_size: 4096
       buffer_size: 40960
-      learning_rate: 0.0003
+      learning_rate: 0.001
       beta: 0.005
       epsilon: 0.2
       lambd: 0.95
@@ -13,8 +13,8 @@ behaviors:
       beta_schedule: linear
     network_settings:
       normalize: false
-      hidden_units: 256
-      num_layers: 3
+      hidden_units: 512
+      num_layers: 4
     reward_signals:
       extrinsic:
         gamma: 0.99 # 折扣因子，代表對未來獎勵的重視程度
