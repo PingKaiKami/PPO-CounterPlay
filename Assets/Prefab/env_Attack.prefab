@@ -783,6 +783,8 @@ MonoBehaviour:
   printReward: 0
   printEndReward: 0
   printState: 0
+  isVerify: 0
+  modelName: new
 --- !u!114 &562014053209935406
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -805,7 +807,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 8e045c3b452b50f4d97253232bb34eb0, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: EnemyAI
@@ -876,7 +878,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5135639864949769572}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
@@ -1005,7 +1007,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 1.5
+  m_Radius: 2
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &753884066132688629
 MonoBehaviour:
@@ -1019,7 +1021,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8aa8afa82df0c5a4e962ca5ed98e5df1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 1.5
+  radius: 2
   angle: 90
 --- !u!1 &6386142872918584957
 GameObject:
@@ -1380,7 +1382,11 @@ GameObject:
   - component: {fileID: 5405712590197313011}
   - component: {fileID: 9220888580992930727}
   - component: {fileID: 7251102566499771942}
+  - component: {fileID: 2842456821889199850}
   - component: {fileID: 3376494440706705712}
+  - component: {fileID: 6630488105584223941}
+  - component: {fileID: 7562057249326923978}
+  - component: {fileID: 5258812382833680619}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -1552,13 +1558,15 @@ MonoBehaviour:
   enemy: {fileID: 5135639864949769572}
   target: {fileID: 5506724503562418699}
   orientation: {fileID: 1329288951844610101}
-  curMode: 10
+  curMode: 9
   moveSpeed: 5
   rotationSpeed: 10
   dashSpeed: 30
   dashDuration: 0.1
   dashCooldown: 1
   damage: 15
+  strafeRadius: 4
+  attackBodyRange: 0.5
   attackBufferRange: 0.5
   attackStartUpTime: 0.5
   attackRecoveryTime: 1
@@ -1570,12 +1578,43 @@ MonoBehaviour:
   longAttackStartUpBasicTime: 2
   longAttackStartUpBonusTime: 3
   longAttackRecoveryTime: 1
-  longAttackRange: 5
-  arrowSpeed: 5
+  longAttackRange: 6
+  arrowSpeed: 10
   strafeSpeed: 1
   waitingRecoveryChance: 0.99
   CurrentState: 0
+  IsUseInternalLogic: 1
   printState: 0
+--- !u!114 &2842456821889199850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8309431072594104518}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_BrainParameters:
+    VectorObservationSize: 6
+    NumStackedVectorObservations: 1
+    m_ActionSpec:
+      m_NumContinuousActions: 2
+      BranchSizes: 05000000
+    VectorActionSize: 
+    VectorActionDescriptions: []
+    VectorActionSpaceType: 0
+    hasUpgradedBrainParametersWithActionSpec: 1
+  m_Model: {fileID: 0}
+  m_InferenceDevice: 0
+  m_BehaviorType: 1
+  m_BehaviorName: PlayerAI
+  TeamId: 0
+  m_UseChildSensors: 1
+  m_UseChildActuators: 1
+  m_ObservableAttributeHandling: 0
 --- !u!114 &3376494440706705712
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1591,6 +1630,55 @@ MonoBehaviour:
   hpSlider: {fileID: 0}
   maxHP: 100
   enemyAgent: {fileID: 7545922681025018124}
+--- !u!114 &6630488105584223941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8309431072594104518}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72a9d4f62bd0590489e6d917c68a2ca8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 5000
+  maxEpisodeTime: 60
+  isVerify: 0
+  modelName: Player_Script
+--- !u!114 &7562057249326923978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8309431072594104518}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  DecisionPeriod: 5
+  TakeActionsBetweenDecisions: 1
+--- !u!114 &5258812382833680619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8309431072594104518}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Record: 1
+  NumStepsToRecord: 0
+  DemonstrationName: Player_data
+  DemonstrationDirectory: C:/Users/User/AI_Enemy/Demonstrations
 --- !u!1 &8486940096068278912
 GameObject:
   m_ObjectHideFlags: 0

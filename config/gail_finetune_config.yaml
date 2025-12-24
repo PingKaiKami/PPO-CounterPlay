@@ -1,0 +1,39 @@
+behaviors:
+  EnemyAI: # 名字必須保持一樣
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 4096      # 建議保持不變，維持梯度的穩定性
+      buffer_size: 40960    # 建議保持不變
+      
+      # 【關鍵修改 1】學習率降為原本的 1/10 (0.001 -> 0.0001)
+      # 這樣可以保護舊有的知識，只進行微調
+      learning_rate: 0.0001 
+      
+      beta: 0.005
+      
+      # 【關鍵修改 2】Epsilon 稍微調低 (0.2 -> 0.15)
+      # 讓策略更新更保守，避免因為面對新敵人而突然崩壞
+      epsilon: 0.15         
+      
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+      beta_schedule: linear
+      
+    # 【絕對不能改】這部分必須跟原本的 Config 完全一致
+    # 否則 ML-Agents 會因為形狀不合而拒絕載入舊模型
+    network_settings:
+      normalize: false
+      hidden_units: 512
+      num_layers: 4
+      
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+        
+    # 【修改 3】步數可以減少，視情況而定 (例如先跑 500萬步看看)
+    max_steps: 5000000 
+    
+    time_horizon: 256
+    summary_freq: 50000

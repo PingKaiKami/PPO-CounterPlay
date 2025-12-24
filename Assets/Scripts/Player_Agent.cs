@@ -6,28 +6,92 @@ using Unity.MLAgents.Actuators;
 public class Player_Agent : Agent
 {
     private Player_Behavior player;
-    // 用來記錄這回合要模仿哪個模式
-    private Player_Behavior.TrainingMode currentDemoMode; 
+    private Player_Behavior.TrainingMode currentDemoMode;
+
+    private HP playerHP;
+    private HP enemyHP;
+    private TrainingArea myArea;
+
+    private float episodeTimer;
+    public float maxEpisodeTime = 60f;
+    public bool isVerify = true;
+    public string modelName = "Player_GAIL"; 
 
     public override void Initialize()
     {
         player = GetComponent<Player_Behavior>();
+        playerHP = GetComponent<HP>();
+        myArea = GetComponentInParent<TrainingArea>();
+
+        if (player.enemy != null)
+        {
+            enemyHP = player.enemy.GetComponent<HP>();
+        }
     }
 
     public override void OnEpisodeBegin()
     {
-        // 每次回合開始，隨機切換一種模仿對象
-        // 這樣你的 Demo 檔案就會包含兩種策略的數據
-        currentDemoMode = Random.value > 0.5f ? 
-            Player_Behavior.TrainingMode.DashAtkRanged : 
-            Player_Behavior.TrainingMode.AtkDashRanged;
-
-        // 重要：要讓 Player_Behavior 重置狀態
-        player.ResetStateToIdle();
+        episodeTimer = 0f;
         
-        // 確保 Player 本身的模式設為手動或無，以免原本的 Update 自動執行邏輯干擾 Agent
-        // 我們假設你有一個 'AgentControlled' 模式，或者直接暫停原本 Update 的邏輯
-        // player.curMode = Player_Behavior.TrainingMode.Manual; 
+        currentDemoMode = Player_Behavior.TrainingMode.AtkDashRanged;
+
+        player.ResetStateToIdle();
+
+        if (myArea != null) myArea.TriggerEpisodeEnd();
+        if (playerHP != null) playerHP.ResetHealth();
+        if (enemyHP != null) enemyHP.ResetHealth();
+    }
+
+    void FixedUpdate()
+    {
+        episodeTimer += Time.fixedDeltaTime;
+
+        // 1. 檢查自己死亡 (Player 輸了 -> Enemy Wins)
+        if (playerHP != null && playerHP.IsDead())
+        {         
+            // 【新增】回報給 BenchmarkManager
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                // 注意：這裡 winner 是 "Enemy"，因為 Player 死了
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", 0);
+            }
+
+            EndEpisode();
+            return;
+        }
+
+        // 2. 檢查敵人死亡 (Player 贏了 -> Player Wins)
+        if (enemyHP != null && enemyHP.IsDead())
+        {
+            // 【新增】回報給 BenchmarkManager
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                // 注意：這裡 winner 是 "Player"，因為 Enemy 死了
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", 0);
+            }
+
+            EndEpisode();
+            return;
+        }
+
+        // 3. 時間到 (Draw)
+        if (episodeTimer >= maxEpisodeTime)
+        {
+            // 【新增】回報給 BenchmarkManager
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", 0);
+            }
+
+            EndEpisode();
+            return;
+        }
+
+        // 4. 掉出地圖
+        if (transform.localPosition.y < -5f)
+        {
+            EndEpisode();
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -54,6 +118,8 @@ public class Player_Agent : Agent
     // 執行 (Agent 的手)
     public override void OnActionReceived(ActionBuffers actions)
     {
+        if (player.IsUseInternalLogic) return;
+        
         // 1. 解析移動 (Continuous)
         float moveX = actions.ContinuousActions[0];
         float moveZ = actions.ContinuousActions[1];
@@ -109,8 +175,9 @@ public class Player_Agent : Agent
         var discreteActions = actionsOut.DiscreteActions;
         discreteActions[0] = 0;
 
-        if (intent.wantsAttack) discreteActions[0] = 1;
-        else if (intent.wantsDash) discreteActions[0] = 2;
-        else if (intent.wantsLongAttack) discreteActions[0] = 3;
+        if (intent.wantsDash) discreteActions[0] = 1;       // 1: Dash
+        else if (intent.wantsDashAttack) discreteActions[0] = 2; // 2: DashAtk
+        else if (intent.wantsAttack) discreteActions[0] = 3;     // 3: Atk
+        else if (intent.wantsLongAttack) discreteActions[0] = 4; // 4: LongAtk
     }
 }

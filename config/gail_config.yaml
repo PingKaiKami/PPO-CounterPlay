@@ -15,11 +15,7 @@ behaviors:
       hidden_units: 128
       num_layers: 2
     reward_signals:
-      # 1. 外部獎勵 (可選，如果你有在 Agent 寫 SetReward，這裡設 strength 1.0，沒有就設 0.1 輔助)
-      extrinsic:
-        gamma: 0.99
-        strength: 0.5
-      # 2. GAIL 獎勵 (核心：模仿風格)
+      # 1. GAIL 獎勵 (核心：模仿風格)
       gail:
         gamma: 0.99
         strength: 0.5
@@ -30,15 +26,15 @@ behaviors:
         learning_rate: 0.0003
         use_actions: false
         use_vail: false
-        demo_path: Assets/Demonstrations/Player_data.demo # 對應你的錄製檔案路徑
+        demo_path: C:\Users\User\AI_Enemy\Demonstrations\Playerdata.demo # 對應你的錄製檔案路徑
     
-    # 3. BC 行為複製 (核心：前期快速引導)
+    # 2. BC 行為複製 (核心：前期快速引導)
     behavioral_cloning:
       strength: 1.0
       gamma: 0.99
-      demo_path: Assets/Demonstrations/Player_data.demo # 對應你的錄製檔案路徑
-      steps: 50000 # 在 5萬步之後，BC 強度歸零，完全交給 GAIL
+      demo_path: C:\Users\User\AI_Enemy\Demonstrations\Playerdata.demo # 對應你的錄製檔案路徑
+      steps: 100000 # 在 5萬步之後，BC 強度歸零，完全交給 GAIL
 
-    max_steps: 500000 # 總訓練步數，依需求增減
+    max_steps: 3000000 # 總訓練步數，依需求增減
     time_horizon: 64
-    summary_freq: 10000
+    summary_freq: 50000

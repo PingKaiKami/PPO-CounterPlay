@@ -1,0 +1,65 @@
+{
+    "PlayerAI": {
+        "checkpoints": [
+            {
+                "steps": 1499992,
+                "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-1499992.onnx",
+                "reward": 0.0,
+                "creation_time": 1765775646.0896869,
+                "auxillary_file_paths": [
+                    "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-1499992.pt"
+                ]
+            },
+            {
+                "steps": 1999978,
+                "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-1999978.onnx",
+                "reward": 0.0,
+                "creation_time": 1765776097.0800827,
+                "auxillary_file_paths": [
+                    "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-1999978.pt"
+                ]
+            },
+            {
+                "steps": 2499999,
+                "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-2499999.onnx",
+                "reward": 0.0,
+                "creation_time": 1765776543.4040043,
+                "auxillary_file_paths": [
+                    "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-2499999.pt"
+                ]
+            },
+            {
+                "steps": 2999974,
+                "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-2999974.onnx",
+                "reward": 0.0,
+                "creation_time": 1765776980.3460276,
+                "auxillary_file_paths": [
+                    "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-2999974.pt"
+                ]
+            },
+            {
+                "steps": 3000038,
+                "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-3000038.onnx",
+                "reward": 0.0,
+                "creation_time": 1765776980.3975463,
+                "auxillary_file_paths": [
+                    "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-3000038.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3000038,
+            "file_path": "results\\PlayerAI_GAIL_01\\PlayerAI.onnx",
+            "reward": 0.0,
+            "creation_time": 1765776980.3975463,
+            "auxillary_file_paths": [
+                "results\\PlayerAI_GAIL_01\\PlayerAI\\PlayerAI-3000038.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "2.4.1+cu118"
+    }
+}

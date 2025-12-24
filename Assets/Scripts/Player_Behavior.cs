@@ -26,7 +26,9 @@ public abstract class Player_Behavior : MonoBehaviour
 
     [Header("Attack")]
     public int damage = 15;
-    public float attackBufferRange = 0.5f;
+    public float strafeRadius = 5f;
+    public float attackBodyRange = 0.5f; // 因為敵人也有體積，所以加這個彌補
+    public float attackBufferRange = 0.5f; // 讓玩家再靠近敵人一點再攻擊 (目前太常揮空了)
     public float attackStartUpTime = 0.5f;
     public float attackRecoveryTime = 1f;
 
@@ -34,12 +36,12 @@ public abstract class Player_Behavior : MonoBehaviour
     public GameObject arrowPrefab;
     public float aimingMoveSpeed = 1f;
     public float aimingRotationSpeed = 3f;
-    public int longAttackDamage = 20;
+    public int longAttackDamage = 20; // max value, actually will decrease a little depends on aimming time (min = damage/2)
     public float longAttackStartUpBasicTime = 2f; // actually minus 1 (for manual)
     public float longAttackStartUpBonusTime = 3f; // extra 0 ~ bonus startUpTime
     public float longAttackRecoveryTime = 1f;
     public float longAttackRange = 5f;
-    public float arrowSpeed = 1f;
+    public float arrowSpeed = 1f; // // max value, actually will decrease a little depends on aimming time (min = arrowSpeed/2)
 
     [Header("AI Decision Making")]
     public float strafeSpeed = 1.5f;
@@ -49,7 +51,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     [Header("Debug")]
     public PlayerState CurrentState = PlayerState.Idle;
-
+    public bool IsUseInternalLogic = false;
     public bool printState = false;
 
     protected Rigidbody rb;
@@ -63,6 +65,7 @@ public abstract class Player_Behavior : MonoBehaviour
     private bool _canDash = true;
     private bool _isAiming = false;
     private int _clockwise = 0;
+    private bool _isSmartAtk = false;
     private bool _forceAtkDashRanged = false;
     private bool isRandom = false;
     private bool isGail = false;
@@ -150,7 +153,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     protected void UpdateBehavior()
     {
-        if (curMode == TrainingMode.GAIL) return;
+        if (!IsUseInternalLogic && curMode == TrainingMode.GAIL) return;
 
         if (CurrentState == PlayerState.StartUp || _isDashing) return;
 
@@ -221,18 +224,18 @@ public abstract class Player_Behavior : MonoBehaviour
             case TrainingMode.AttackAndRun:
             case TrainingMode.AttackAndDash:
                 if (CurrentState == PlayerState.Idle)
-                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
                 else
-                    intent.moveDirection = (distanceToTarget < 3f) ? -directionToTarget : GetStrafeDirection(directionToTarget);
+                    intent.moveDirection = (distanceToTarget < strafeRadius) ? -directionToTarget : GetStrafeDirection(directionToTarget);
                 break;
 
             case TrainingMode.SmartAttack:
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
-                bool isRecovery = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery);
-                if (isRecovery)
-                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                _isSmartAtk = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery && CurrentState == PlayerState.Idle);
+                if (_isSmartAtk)
+                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
                 else
-                    intent.moveDirection = GetDefensiveMoveDirection(distanceToTarget, directionToTarget);
+                    intent.moveDirection = (distanceToTarget < strafeRadius) ? -directionToTarget : GetStrafeDirection(directionToTarget);
                 break;
 
             case TrainingMode.LongRangeAttack:
@@ -244,7 +247,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
             case TrainingMode.AtkDashRanged:
                 if (_forceAtkDashRanged)
-                    intent.moveDirection = (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
+                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
                 else
                     intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
                                         (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
@@ -324,14 +327,14 @@ public abstract class Player_Behavior : MonoBehaviour
         {
             case TrainingMode.AutoTrace:
             case TrainingMode.AttackAndRun:
-                if (CurrentState == PlayerState.Idle && distanceToTarget <= (attackRadius + attackBufferRange)) 
+                if (CurrentState == PlayerState.Idle && distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) 
                     intent.wantsAttack = true;
                 break;
 
             case TrainingMode.AttackAndDash:
                 if (CurrentState == PlayerState.Idle)
                 {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange)) intent.wantsAttack = true;
+                    if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) intent.wantsAttack = true;
                 }
                 else if (_canDash) intent.wantsDash = true;
                 break;
@@ -340,12 +343,12 @@ public abstract class Player_Behavior : MonoBehaviour
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
                 if (CurrentState == PlayerState.Idle && enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
                 {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange)) intent.wantsAttack = true;
+                    if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) intent.wantsAttack = true;
                     else if (_canDash) intent.wantsDash = true;
                 }
-                else
+                else if(_isSmartAtk)
                 {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange) && _canDash) intent.wantsDash = true;
+                    if (_canDash) intent.wantsDash = true;
                 }
                 break;
 
@@ -370,7 +373,7 @@ public abstract class Player_Behavior : MonoBehaviour
                         if (Random.value > 0.5f && !_forceAtkDashRanged) intent.wantsLongAttack = true;
                         else _forceAtkDashRanged = true;
                     }
-                    else if (distanceToTarget <= (attackRadius + attackBufferRange))
+                    else if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange))
                     {
                         intent.wantsAttack = true;
                     }
@@ -398,8 +401,7 @@ public abstract class Player_Behavior : MonoBehaviour
         _moveDirection = moveDir; 
         ApplyMovement(moveDir);
 
-        // 2. 【修改點】執行旋轉
-        // 如果 lookDir 是零向量(例如 Agent 沒傳)，就用移動方向代替，避免轉向 (0,0,0)
+        // 2. 執行旋轉
         Vector3 finalLookDir = (lookDir.sqrMagnitude > 0.001f) ? lookDir : moveDir;
         ApplyRotation(finalLookDir);
 
@@ -433,105 +435,6 @@ public abstract class Player_Behavior : MonoBehaviour
             CurrentState = PlayerState.Idle;
         }
     }
-
-    private Vector3 CalculateMoveDirection()
-    {
-        if (target == null && curMode != TrainingMode.Manual) return Vector3.zero;
-
-        Vector3 directionToTarget = target.position - transform.position;
-        directionToTarget.y = 0;
-        float distanceToTarget = directionToTarget.magnitude;
-
-        switch (curMode)
-        {
-            case TrainingMode.Manual:
-                float h = Input.GetAxisRaw("Horizontal");
-                float v = Input.GetAxisRaw("Vertical");
-                return (orientation.forward * v + orientation.right * h).normalized;
-
-            case TrainingMode.AutoTrace:
-                return directionToTarget;
-
-            case TrainingMode.AttackAndRun:
-            case TrainingMode.AttackAndDash:
-                if (CurrentState == PlayerState.Idle)
-                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
-                else
-                    return (distanceToTarget < 3f) ? -directionToTarget : GetStrafeDirection(directionToTarget);
-
-            case TrainingMode.SmartAttack:
-                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
-                if (enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
-                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
-                else
-                    return GetDefensiveMoveDirection(distanceToTarget, directionToTarget);
-
-            case TrainingMode.LongRangeAttack:
-                return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
-
-            case TrainingMode.DashAtkRanged:
-                return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
-
-            case TrainingMode.AtkDashRanged:
-                if (_forceAtkDashRanged)
-                {
-                    return (distanceToTarget > (attackRadius + attackBufferRange)) ? directionToTarget : Vector3.zero;
-                }
-                else
-                {
-                    return (distanceToTarget < longAttackRange) ? -directionToTarget : (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : GetStrafeDirection(directionToTarget);
-                }
-
-            case TrainingMode.Escape:
-            case TrainingMode.OnlyDash:
-                return -directionToTarget;
-
-            default:
-                return Vector3.zero;
-        }
-    }
-    
-    private Vector3 CalculateRotateDirection()
-    {
-        switch (curMode)
-        {
-            case TrainingMode.Manual:
-                if (_isAiming)
-                {
-                    Vector3 mouseWorldPos = GetMouseWorldPosition();
-
-                    thirdPersonCamera.enabled = false;
-                    if (mouseWorldPos != Vector3.zero)
-                    {
-                        return mouseWorldPos - transform.position;
-                    }
-                    else
-                    {
-                        return _moveDirection;
-                    }
-                }
-                else
-                {
-                    thirdPersonCamera.enabled = true;
-                    return _moveDirection;
-                }
-            default:
-                if (_isAiming)
-                {
-                    return Vector3.zero;
-                }
-                else
-                {
-                    return _moveDirection;
-                }
-        }
-    }
-
-    private Vector3 GetDefensiveMoveDirection(float distance, Vector3 direction)
-    {
-        return distance < 3f ? -direction : GetStrafeDirection(direction);
-    }
-
     private Vector3 GetStrafeDirection(Vector3 directionToTarget)
     {
         _clockwise = (_clockwise != 0) ? _clockwise : (Random.value < 0.5f ? 1 : -1);
@@ -584,151 +487,6 @@ public abstract class Player_Behavior : MonoBehaviour
         // 如果射線沒有擊中平面（例如，滑鼠指向天空），返回一個無效值
         return Vector3.zero; 
     }
-
-    private void TriggerActions(Vector3 moveDir)
-    {
-        if (CurrentState != PlayerState.Idle && CurrentState != PlayerState.Recovery && CurrentState != PlayerState.Waiting) return;
-
-        if (curMode == TrainingMode.Manual)
-        {
-            if (Input.GetMouseButtonDown(0)) StartCoroutine(Attack());
-            if (Input.GetMouseButtonDown(1)) StartCoroutine(ManualLongAttack());
-            if (Input.GetKeyDown(KeyCode.LeftShift) && _canDash) StartCoroutine(Dash(moveDir));
-            // Defending logic...
-        }
-        else // AI Trigger Logic
-        {
-            Vector3 directionToTarget = target.position - transform.position;
-            directionToTarget.y = 0;
-            float distanceToTarget = directionToTarget.magnitude;
-
-            if (curMode == TrainingMode.AutoTrace)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
-                }
-
-            }
-            else if (curMode == TrainingMode.AttackAndRun)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange)) StartCoroutine(Attack());
-                }
-
-            }
-            else if (curMode == TrainingMode.AttackAndDash)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange))
-                    {
-                        StartCoroutine(Attack());
-                    }
-                }
-                else
-                {
-                    if (_canDash)
-                    {
-                        StartCoroutine(Dash(-directionToTarget));
-                    }
-                }
-            }
-            else if (curMode == TrainingMode.SmartAttack)
-            {
-                var enemyAgent = enemy.GetComponent<Enemy_Agent>();
-                if (CurrentState == PlayerState.Idle && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
-                {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange))
-                    {
-                        StartCoroutine(Attack());
-                    }
-                    else
-                    {
-                        if (_canDash)
-                        {
-                            StartCoroutine(Dash(directionToTarget));
-                        }
-                    }
-                }
-                else
-                {
-                    if (distanceToTarget <= (attackRadius + attackBufferRange) && _canDash)
-                    {
-                        StartCoroutine(Dash(-directionToTarget));
-                    }
-                }
-            }
-            else if (curMode == TrainingMode.LongRangeAttack)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget >= longAttackRange) StartCoroutine(LongAttack());
-                }
-
-            }
-            else if (curMode == TrainingMode.DashAtkRanged)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget >= longAttackRange)
-                    {
-                        if (Random.value > 0.5f && !_isDashing)
-                        {
-                            StartCoroutine(LongAttack());
-                        }
-                        else
-                        {
-                            if (_canDash)
-                            {
-                                StartCoroutine(Dash(directionToTarget, isDirectAttack: true));
-                            }
-                        }
-                    }
-                }
-
-            }
-            else if (curMode == TrainingMode.AtkDashRanged)
-            {
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget >= longAttackRange)
-                    {
-                        if (Random.value > 0.5f && !_forceAtkDashRanged)
-                        {
-                            StartCoroutine(LongAttack());
-                        }
-                        else
-                        {
-                            _forceAtkDashRanged = true;
-                        }
-                    }
-                    else
-                    {
-                        if (distanceToTarget <= (attackRadius + attackBufferRange))
-                        {
-                            StartCoroutine(Attack());
-                        }
-                    }
-                }
-                else
-                {
-                    if (_forceAtkDashRanged && _canDash)
-                    {
-                        StartCoroutine(Dash(-directionToTarget));
-                        _forceAtkDashRanged = false;
-                    }
-                }
-                
-            }
-            else if (curMode == TrainingMode.OnlyDash && _canDash)
-            {
-                StartCoroutine(Dash(moveDir));
-            }
-        }
-    }
-
     private IEnumerator Attack()
     {
         CurrentState = PlayerState.StartUp;
@@ -776,6 +534,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private IEnumerator LongAttack()
     {
+        _forceAtkDashRanged = false;
         CurrentState = PlayerState.Aiming;
         _actionProgress = 0f;
         rb.velocity = Vector3.zero;
@@ -803,6 +562,8 @@ public abstract class Player_Behavior : MonoBehaviour
             yield return new WaitForFixedUpdate();
         }
         float bonusTime = Random.Range(0, longAttackStartUpBonusTime);
+        int arrowDamage = longAttackDamage/2 + (int)(longAttackDamage/2 * bonusTime / longAttackStartUpBonusTime);
+        float actualArrowSpeed = arrowSpeed/2 + arrowSpeed/2 * bonusTime / longAttackStartUpBonusTime;
         time = 0f;
         while (time < bonusTime)
         {
@@ -829,11 +590,11 @@ public abstract class Player_Behavior : MonoBehaviour
         var arrowComp = newArrow.GetComponent<Arrow>();
         if (arrowComp != null)
         {
-            arrowComp.damage = longAttackDamage;
+            arrowComp.damage = arrowDamage;
             arrowComp.target = enemy;
             arrowComp.SetOwner(gameObject);
         }
-        newArrow.GetComponent<Rigidbody>().velocity = transform.forward * arrowSpeed;
+        newArrow.GetComponent<Rigidbody>().velocity = transform.forward * actualArrowSpeed;
 
         CurrentState = PlayerState.Recovery;
         _actionProgress = 0f;
@@ -966,8 +727,8 @@ public abstract class Player_Behavior : MonoBehaviour
         {
             foreach (TrainingMode mode in allModes)
             {
-                // exclude escape, onlydash, DashAtkRanged, AtkDashRanged mode
-                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged)
+                // exclude escape, onlydash, DashAtkRanged, AtkDashRanged, GAIL mode
+                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged && mode != TrainingMode.GAIL)
                 {
                     availableModes.Add(mode);
                 }

@@ -31,6 +31,10 @@ public class Enemy_Agent : Agent
     public bool printReward = false;
     public bool printEndReward = true;
     public bool printState = false;
+
+    [Header("Verify")]
+    public bool isVerify = true;
+    public string modelName;
     private float episodeTimer;
     private HP player_HP;
     private HP enemy_HP;
@@ -333,6 +337,10 @@ public class Enemy_Agent : Agent
             {
                 Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
             }
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", GetCumulativeReward());
+            }
             EndAndCleanupEpisode();
             return;
         }
@@ -345,6 +353,10 @@ public class Enemy_Agent : Agent
             {
                 Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
             }
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", GetCumulativeReward());
+            }
             EndAndCleanupEpisode();
             return;
         }
@@ -356,6 +368,10 @@ public class Enemy_Agent : Agent
             if (printEndReward)
             {
                 Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
+            }
+            if (BenchmarkManager.Instance != null && isVerify)
+            {
+                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", GetCumulativeReward());
             }
             EndAndCleanupEpisode();
             return;
@@ -386,6 +402,11 @@ public class Enemy_Agent : Agent
         if (myArea != null)
         {
             myArea.TriggerEpisodeEnd();
+        }
+        var playerAgent = playerTransform.GetComponent<Player_Agent>();
+        if(playerAgent != null)
+        {
+            playerAgent.EndEpisode();
         }
         EndEpisode();
     }
