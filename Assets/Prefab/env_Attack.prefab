@@ -644,7 +644,7 @@ MonoBehaviour:
       damage: 20
       attackRange: 3
       attackAngle: 60
-      forwardMovement: 2
+      forwardMovement: 3
       movementCurve:
         serializedVersion: 2
         m_Curve:
@@ -709,7 +709,7 @@ MonoBehaviour:
       damage: 40
       attackRange: 3
       attackAngle: 120
-      forwardMovement: 5
+      forwardMovement: 4
       movementCurve:
         serializedVersion: 2
         m_Curve:
@@ -748,11 +748,11 @@ MonoBehaviour:
     attackSteps:
     - stepName: Fast Attack 1
       startupTime: 0.5
-      recoveryTime: 1
+      recoveryTime: 2
       damage: 20
       attackRange: 2
       attackAngle: 90
-      forwardMovement: 3
+      forwardMovement: 2
       movementCurve:
         serializedVersion: 2
         m_Curve:
@@ -807,7 +807,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 9415d48f2a5cad448ad49d7e7f25231c, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: EnemyAI
@@ -1558,9 +1558,9 @@ MonoBehaviour:
   enemy: {fileID: 5135639864949769572}
   target: {fileID: 5506724503562418699}
   orientation: {fileID: 1329288951844610101}
-  curMode: 9
+  curMode: 4
   moveSpeed: 5
-  rotationSpeed: 10
+  rotationSpeed: 5
   dashSpeed: 30
   dashDuration: 0.1
   dashCooldown: 1
@@ -1583,7 +1583,7 @@ MonoBehaviour:
   strafeSpeed: 1
   waitingRecoveryChance: 0.99
   CurrentState: 0
-  IsUseInternalLogic: 1
+  IsUseInternalLogic: 0
   printState: 0
 --- !u!114 &2842456821889199850
 MonoBehaviour:
@@ -1598,7 +1598,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 6
+    VectorObservationSize: 8
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 2
@@ -1607,9 +1607,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: e271ff806d1813442bdffc261976ed2a, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 1
+  m_BehaviorType: 2
   m_BehaviorName: PlayerAI
   TeamId: 0
   m_UseChildSensors: 1
@@ -1645,10 +1645,11 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 5000
+  MaxStep: 0
   maxEpisodeTime: 60
   isVerify: 0
-  modelName: Player_Script
+  printDebugObs: 0
+  modelName: Player_GAIL
 --- !u!114 &7562057249326923978
 MonoBehaviour:
   m_ObjectHideFlags: 0

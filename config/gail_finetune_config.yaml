@@ -7,13 +7,13 @@ behaviors:
       
       # 【關鍵修改 1】學習率降為原本的 1/10 (0.001 -> 0.0001)
       # 這樣可以保護舊有的知識，只進行微調
-      learning_rate: 0.0001 
+      learning_rate: 0.0002
       
       beta: 0.005
       
       # 【關鍵修改 2】Epsilon 稍微調低 (0.2 -> 0.15)
       # 讓策略更新更保守，避免因為面對新敵人而突然崩壞
-      epsilon: 0.15         
+      epsilon: 0.15
       
       lambd: 0.95
       num_epoch: 3
@@ -26,14 +26,17 @@ behaviors:
       normalize: false
       hidden_units: 512
       num_layers: 4
+      memory:
+        sequence_length: 64  # AI 能「回想」過去多少個步驟的資訊
+        memory_size: 256
       
     reward_signals:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-        
-    # 【修改 3】步數可以減少，視情況而定 (例如先跑 500萬步看看)
-    max_steps: 5000000 
-    
+
+    checkpoint_interval: 5000000
+    keep_checkpoints: 100
+    max_steps: 40000000
     time_horizon: 256
-    summary_freq: 50000
+    summary_freq: 500000

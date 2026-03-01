@@ -3,13 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 
+
 public abstract class Player_Behavior : MonoBehaviour
 {
     public enum PlayerState { Idle, StartUp, Aiming, Recovery, Defending, Waiting, Dashing }
     public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, GAIL, Manual }
 
     [Header("References")]
-    [SerializeField] private ThirdPersonCamera thirdPersonCamera; 
+    [SerializeField] private ThirdPersonCamera thirdPersonCamera;
     public GameObject enemy;
     public Transform target;
     public Transform orientation;
@@ -59,14 +60,13 @@ public abstract class Player_Behavior : MonoBehaviour
     protected float attackRadius;
     protected Material mat_player;
     protected Material mat_line;
-    private Vector3 _moveDirection;
-    private Vector3 _rotateDirection;
     private bool _isDashing = false;
     private bool _canDash = true;
     private bool _isAiming = false;
     private int _clockwise = 0;
     private bool _isSmartAtk = false;
-    private bool _forceAtkDashRanged = false;
+    private bool _isDashAtk = false;
+    private bool _isAtkDash = false;
     private bool isRandom = false;
     private bool isGail = false;
     private List<GameObject> _activeProjectiles = new List<GameObject>();
@@ -150,37 +150,23 @@ public abstract class Player_Behavior : MonoBehaviour
             myArea.OnEpisodeEnd -= ResetStateToIdle;
         }
     }
+    
 
+    
+    // main
     protected void UpdateBehavior()
     {
-        if (!IsUseInternalLogic && curMode == TrainingMode.GAIL) return;
+        if (!IsUseInternalLogic || curMode == TrainingMode.GAIL) return;
 
         if (CurrentState == PlayerState.StartUp || _isDashing) return;
+
+        // currentController = $"Script (Logic) - Frame: {Time.frameCount}";
 
         // A. 思考 (問大腦)
         AI_Intent intent = GetLogicIntent(curMode);
 
         // B. 執行 (動身體)
         ExecuteAgentAction(intent.moveDirection, intent.lookDirection, intent.wantsDash, intent.wantsDashAttack, intent.wantsAttack, intent.wantsLongAttack);
-
-
-        // _moveDirection = CalculateMoveDirection();
-        // _rotateDirection = CalculateRotateDirection();
-
-        // ApplyMovement(_moveDirection);
-        // ApplyRotation(_rotateDirection);   
-
-        // if (CurrentState == PlayerState.Aiming)
-        // {
-        //     return;
-        // }
-
-        // if (CurrentState == PlayerState.Waiting)
-        // {
-        //     ProcessWaitingState();
-        //     return;
-        // }
-        // TriggerActions(_moveDirection);
     }
     public struct AI_Intent
     {
@@ -209,6 +195,7 @@ public abstract class Player_Behavior : MonoBehaviour
         // =========================================================
         // Part 1: 移動意圖 (Movement)
         // =========================================================
+        float atkRadius = attackRadius + attackBodyRange - attackBufferRange;
         switch (mode)
         {
             case TrainingMode.Manual:
@@ -224,7 +211,7 @@ public abstract class Player_Behavior : MonoBehaviour
             case TrainingMode.AttackAndRun:
             case TrainingMode.AttackAndDash:
                 if (CurrentState == PlayerState.Idle)
-                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
+                    intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
                 else
                     intent.moveDirection = (distanceToTarget < strafeRadius) ? -directionToTarget : GetStrafeDirection(directionToTarget);
                 break;
@@ -233,21 +220,28 @@ public abstract class Player_Behavior : MonoBehaviour
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
                 _isSmartAtk = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery && CurrentState == PlayerState.Idle);
                 if (_isSmartAtk)
-                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
+                    intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
                 else
                     intent.moveDirection = (distanceToTarget < strafeRadius) ? -directionToTarget : GetStrafeDirection(directionToTarget);
                 break;
 
             case TrainingMode.LongRangeAttack:
-            case TrainingMode.DashAtkRanged:
                 intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
-                                    (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
-                                    GetStrafeDirection(directionToTarget);
+                                        (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
+                                        GetStrafeDirection(directionToTarget);
+                break;
+            case TrainingMode.DashAtkRanged:
+                if(_isDashAtk)
+                    intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
+                else
+                    intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
+                                        (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
+                                        GetStrafeDirection(directionToTarget);
                 break;
 
             case TrainingMode.AtkDashRanged:
-                if (_forceAtkDashRanged)
-                    intent.moveDirection = (distanceToTarget > attackRadius) ? directionToTarget : Vector3.zero;
+                if (_isAtkDash)
+                    intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
                 else
                     intent.moveDirection = (distanceToTarget < longAttackRange) ? -directionToTarget : 
                                         (distanceToTarget > longAttackRange * 1.5f) ? directionToTarget : 
@@ -288,23 +282,7 @@ public abstract class Player_Behavior : MonoBehaviour
         else
         {
             // AI 模式：預設看移動方向
-            intent.lookDirection = intent.moveDirection;
-
-            // 特殊情況：如果正在瞄準或攻擊，強制看敵人
-            if (CurrentState == PlayerState.Aiming || _isAiming)
-            {
-                intent.lookDirection = directionToTarget;
-            }
-            else if (distanceToTarget > 0.1f) // 確保有目標
-            {
-                // 如果我們站著不動但想攻擊，或是正在 Strafe，通常還是要看著敵人
-                // 這裡可以根據你的需求調整：
-                // 如果是 LongRangeAttack，不管有沒有動，最好都看著敵人
-                if (mode == TrainingMode.LongRangeAttack || mode == TrainingMode.DashAtkRanged || mode == TrainingMode.AtkDashRanged)
-                {
-                    intent.lookDirection = directionToTarget;
-                }
-            }
+            intent.lookDirection = directionToTarget;
         }
 
         // =========================================================
@@ -327,14 +305,14 @@ public abstract class Player_Behavior : MonoBehaviour
         {
             case TrainingMode.AutoTrace:
             case TrainingMode.AttackAndRun:
-                if (CurrentState == PlayerState.Idle && distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) 
+                if (CurrentState == PlayerState.Idle && distanceToTarget <= atkRadius) 
                     intent.wantsAttack = true;
                 break;
 
             case TrainingMode.AttackAndDash:
                 if (CurrentState == PlayerState.Idle)
                 {
-                    if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) intent.wantsAttack = true;
+                    if (distanceToTarget <= atkRadius) intent.wantsAttack = true;
                 }
                 else if (_canDash) intent.wantsDash = true;
                 break;
@@ -343,7 +321,7 @@ public abstract class Player_Behavior : MonoBehaviour
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
                 if (CurrentState == PlayerState.Idle && enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery)
                 {
-                    if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange)) intent.wantsAttack = true;
+                    if (distanceToTarget <= atkRadius) intent.wantsAttack = true;
                     else if (_canDash) intent.wantsDash = true;
                 }
                 else if(_isSmartAtk)
@@ -358,10 +336,22 @@ public abstract class Player_Behavior : MonoBehaviour
                 break;
 
             case TrainingMode.DashAtkRanged:
-                if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange)
+                if (CurrentState == PlayerState.Idle)
                 {
-                    if (Random.value > 0.5f && !_isDashing) intent.wantsLongAttack = true;
-                    else if (_canDash) intent.wantsDashAttack = true;
+                    if(distanceToTarget >= longAttackRange)
+                    {
+                        if (Random.value > 0.5f && !_isDashAtk) intent.wantsLongAttack = true;
+                        else _isDashAtk = true;
+                    }
+                    else if(distanceToTarget <= atkRadius)
+                    {
+                        intent.wantsAttack = true;
+                    }
+                }
+                else if(_isDashAtk && _canDash)
+                {
+                    intent.wantsDash = true;
+                    _isDashAtk = false;
                 }
                 break;
 
@@ -370,18 +360,18 @@ public abstract class Player_Behavior : MonoBehaviour
                 {
                     if (distanceToTarget >= longAttackRange)
                     {
-                        if (Random.value > 0.5f && !_forceAtkDashRanged) intent.wantsLongAttack = true;
-                        else _forceAtkDashRanged = true;
+                        if (Random.value > 0.5f && !_isAtkDash) intent.wantsLongAttack = true;
+                        else _isAtkDash = true;
                     }
-                    else if (distanceToTarget <= (attackRadius + attackBodyRange - attackBufferRange))
+                    else if (distanceToTarget <= atkRadius)
                     {
                         intent.wantsAttack = true;
                     }
                 }
-                else if (_forceAtkDashRanged && _canDash)
+                else if (_isAtkDash && _canDash)
                 {
                     intent.wantsDash = true;
-                    _forceAtkDashRanged = false;
+                    _isAtkDash = false;
                 }
                 break;
 
@@ -398,7 +388,6 @@ public abstract class Player_Behavior : MonoBehaviour
         if(CurrentState == PlayerState.StartUp || _isDashing) 
             return;
         // 1. 執行移動
-        _moveDirection = moveDir; 
         ApplyMovement(moveDir);
 
         // 2. 執行旋轉
@@ -417,7 +406,7 @@ public abstract class Player_Behavior : MonoBehaviour
             {
                 Vector3 finalDashDir = (moveDir == Vector3.zero) ? transform.forward : moveDir;
                 if(curMode == TrainingMode.AtkDashRanged) finalDashDir = -finalDashDir;
-                StartCoroutine(Dash(finalDashDir)); 
+                StartCoroutine(Dash(finalDashDir));
             }
             else if(dashAtk && _canDash)
             {
@@ -534,7 +523,7 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private IEnumerator LongAttack()
     {
-        _forceAtkDashRanged = false;
+        _isAtkDash = false; // ?
         CurrentState = PlayerState.Aiming;
         _actionProgress = 0f;
         rb.velocity = Vector3.zero;
@@ -727,8 +716,8 @@ public abstract class Player_Behavior : MonoBehaviour
         {
             foreach (TrainingMode mode in allModes)
             {
-                // exclude escape, onlydash, DashAtkRanged, AtkDashRanged, GAIL mode
-                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged && mode != TrainingMode.GAIL)
+                // exclude escape, onlydash, SmartAttack, GAIL mode and any long ranged mode
+                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode!= TrainingMode.SmartAttack && mode != TrainingMode.GAIL && mode != TrainingMode.LongRangeAttack && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged)
                 {
                     availableModes.Add(mode);
                 }

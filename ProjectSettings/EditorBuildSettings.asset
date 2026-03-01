@@ -14,4 +14,8 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/MixedTrainingScene.unity
     guid: 15f39acb33e48ac4bb3771f951936bab
-  m_configObjects: {}
+  m_configObjects:
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11cdb0934d3c13440b5a18314cb750e2,
+      type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 3f4e32ec8ee27594cacb98a7daa82a81,
+      type: 2}
