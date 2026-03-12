@@ -62,6 +62,7 @@ public class VR_Player_Behavior : MonoBehaviour
 
     [Range(0.01f, 1.0f)]
     public float waitingRecoveryChance = 0.1f;
+    private float waitingTime = 0;
 
     [Header("Debug")]
     public PlayerState CurrentState = PlayerState.Idle;
@@ -152,9 +153,12 @@ public class VR_Player_Behavior : MonoBehaviour
         }
         else
         {
-            FP_Camera.SetActive(false);
-            TP_Camera_main.SetActive(true);
-            TP_Camera_freelook.SetActive(true);
+            if(FP_Camera != null && TP_Camera_main != null && TP_Camera_freelook != null)
+            {
+                FP_Camera.SetActive(false);
+                TP_Camera_main.SetActive(true);
+                TP_Camera_freelook.SetActive(true);
+            }
         }
     }
     public void ResetStateToIdle()
@@ -482,9 +486,18 @@ public class VR_Player_Behavior : MonoBehaviour
     }
     private void ProcessWaitingState()
     {
-        if (Random.value < waitingRecoveryChance * Time.fixedDeltaTime)
+        if(waitingTime < 0.2f)
+        {
+            waitingTime += Time.fixedDeltaTime;
+        }
+        else if (Random.value < waitingRecoveryChance)
         {
             CurrentState = PlayerState.Idle;
+            waitingTime = 0;
+        }
+        else
+        {
+            waitingTime = 0;
         }
     }
     private Vector3 GetStrafeDirection(Vector3 directionToTarget)
@@ -544,7 +557,7 @@ public class VR_Player_Behavior : MonoBehaviour
         float time;
         Color targetColor;
         CurrentState = PlayerState.Attacking;
-        int curEnemyHP = enemy.GetComponent<HP_Enemy>().GetCurrentHealth();
+        int curEnemyHP = enemy.GetComponent<VR_HP_Enemy>().GetCurrentHealth();
         mat_player.color = Color.yellow;
         bool isHit = false;
 
@@ -559,33 +572,42 @@ public class VR_Player_Behavior : MonoBehaviour
         
         yield return null;
 
-        if (!isForTraining)
+        if (!isForTraining) // need fix later
         {
             while(!sword_animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"))
             {
-                if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
+                if (sword_animator.gameObject.GetComponent<VR_Sword>().IsAttacking())
                 {
-                    enemy.GetComponent<HP_Enemy>().HurtFromMelee(damage);
-                    isHit = true;
+                    if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
+                    {
+                        enemy.GetComponent<VR_HP_Enemy>().HurtFromMelee(damage);
+                        isHit = true;
+                    }
                 }
+                
                 yield return null;
             }
         }
         else
         {
+            // 0.2 秒的休息時間也在這個 while 迴圈裡面 (0.5蓄力 -> 0.3攻擊 -> 0.2休息)
             while(!sword_object.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("Idle"))
             {
-                if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
+                if (sword_object.GetComponent<VR_Sword>().IsAttacking())
                 {
-                    enemy.GetComponent<HP_Enemy>().HurtFromMelee(damage);
-                    isHit = true;
+                    if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
+                    {
+                        enemy.GetComponent<VR_HP_Enemy>().HurtFromMelee(damage);
+                        isHit = true;
+                    }
                 }
+                
                 yield return null;
             }
         }
         
 
-        if(curEnemyHP == enemy.GetComponent<HP_Enemy>().GetCurrentHealth())
+        if(curEnemyHP == enemy.GetComponent<VR_HP_Enemy>().GetCurrentHealth())
         {
             enemy?.GetComponent<VR_Enemy>()?.OnPlayerAttackMissed();
         }

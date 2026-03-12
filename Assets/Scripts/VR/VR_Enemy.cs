@@ -15,8 +15,9 @@ public class VR_Enemy : Agent
     public int health;
     public Transform playerCamera;
     public XRBaseInteractor interactor_right;
-    public Vector3 AngularVelocity { get; private set; }
-    public Vector3 Velocity { get; private set; }
+    public Vector3 WeaponAngularVelocity { get; private set; }
+    public Vector3 WeaponVelocity { get; private set; }
+    public Vector3 CameraRotationAngles { get; private set; }
     public bool IsHoldingWeapon { get; private set; }
 
     private Vector3 lastPos;
@@ -32,6 +33,7 @@ public class VR_Enemy : Agent
     public EnemyState curState = EnemyState.Idle;
     public Transform orientation;
     public Transform enemyObj;
+    public VR_Sword sword;
     public MeshRenderer mr;
     public float moveSpeed = 3f;
     public float rotationSpeed = 3f;
@@ -52,8 +54,8 @@ public class VR_Enemy : Agent
     public bool isVerify = true;
     public string modelName;
     private float episodeTimer;
-    private HP player_HP;
-    private HP enemy_HP;
+    private VR_HP_Player player_HP;
+    private VR_HP_Enemy enemy_HP;
 
     private Material mat;
     private Color oriColor;
@@ -63,44 +65,9 @@ public class VR_Enemy : Agent
     private Vector3 moveDirection;
     private float actionProgress;
     private VR_TrainingArea myArea;
-    private float atk_CoolDown;
     private bool isHit = false;
     public float GetActionProgress() => actionProgress;
     public bool GetIsEnemyGotHit() => isHit;
-    void Update()
-    {
-        if(atk_CoolDown > 0)
-        {
-            atk_CoolDown -= Time.fixedDeltaTime;
-        }
-        Vector3 forwardDir = playerCamera.forward;
-
-        Vector3 rotationAngles = playerCamera.eulerAngles;
-
-        if(interactor_right == null) return;
-        Vector3 Vel = (interactor_right.attachTransform.position - lastPos) / Time.deltaTime;
-        lastPos = interactor_right.attachTransform.position;
-
-        if (interactor_right.hasSelection)
-        {
-            // 獲取目前選中的第一個物件
-            var interactable = interactor_right.interactablesSelected[0];
-            currentWeaponTransform = interactable.transform;
-            IsHoldingWeapon = true;
-
-            CalculatePhysics(currentWeaponTransform);
-        }
-        else
-        {
-            IsHoldingWeapon = false;
-            currentWeaponTransform = null;
-            Velocity = Vector3.zero;
-            AngularVelocity = Vector3.zero;
-        }
-
-        // Debug.Log($"看的前方向量: {forwardDir} | 旋轉角度: {rotationAngles}");
-        // Debug.Log($"武器速度: {Velocity} | 武器角速度: {AngularVelocity} | 武器位置: {lastPos}");
-    }
 
     private void OnTriggerEnter(Collider other) 
     {
@@ -112,63 +79,13 @@ public class VR_Enemy : Agent
         if(other.gameObject.name == "Sword")
             isHit = false;
     }
-    void CalculatePhysics(Transform target)
+
+    private void CalculatePhysics(Transform target)
     {
-        // --- 線速度 ---
-        Velocity = (target.position - lastPos) / Time.deltaTime;
+        WeaponVelocity = (target.position - lastPos) / Time.deltaTime;
         lastPos = target.position;
-
-        // --- 角速度 ---
-        Quaternion deltaRotation = target.rotation * Quaternion.Inverse(lastRot);
-        deltaRotation.ToAngleAxis(out float angle, out Vector3 axis);
-
-        if (angle > 180f) angle -= 360f;
-
-        if (Time.deltaTime > 0)
-        {
-            AngularVelocity = axis * (angle / Time.deltaTime);
-        }
-        lastRot = target.rotation;
     }
-    
-    void Awake()
-    {
-        // ================== 動態調整 Branch Size 的核心邏輯 ==================
 
-        // 1. 獲取掛載在同一個物件上的 BehaviorParameters 元件
-        var behaviorParameters = GetComponent<BehaviorParameters>();
-
-
-        // 2. 獲取當前的動作規範 (ActionSpec)
-        //    ActionSpec 是一個包含了所有分支資訊的結構
-        ActionSpec actionSpec = behaviorParameters.BrainParameters.ActionSpec;
-
-        // 3. 計算新的攻擊分支大小
-        //    大小 = 1 (不攻擊) + 攻擊模式的數量
-        int newAttackBranchSize = 1 + comboPatterns.Length;
-
-        // 4. 檢查當前設定是否已經是正確的
-        if (actionSpec.BranchSizes[1] != newAttackBranchSize)
-        {
-            // 如果不正確，則創建一個新的 BranchSizes 陣列
-            // 先複製舊的設定
-            int[] newBranchSizes = (int[])actionSpec.BranchSizes.Clone();
-
-            // 修改指定分支的大小
-            newBranchSizes[1] = newAttackBranchSize;
-
-            // 5. 將修改後的新設定應用回去
-            actionSpec.BranchSizes = newBranchSizes;
-
-            // 更新 BehaviorParameters 的 BrainParameters
-            // 這一行在新版的 ML-Agents 中可能不是必須的，但加上更保險
-            behaviorParameters.BrainParameters.ActionSpec = actionSpec;
-
-            // 打印一條日誌，讓你知道程式碼已經自動修改了設定
-            Debug.Log($"Attack Branch Size for {gameObject.name} was dynamically set to {newAttackBranchSize} based on {comboPatterns.Length} attack patterns.");
-        }
-        // =======================================================================
-    }
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -178,12 +95,19 @@ public class VR_Enemy : Agent
 
         if (playerTransform != null)
         {
-            player_HP = playerTransform.GetComponent<HP>();
+            player_HP = playerTransform.GetComponent<VR_HP_Player>();
             player_Behavior = playerTransform.GetComponent<VR_Player_Behavior>();
         }
-        enemy_HP = GetComponent<HP>();
+        enemy_HP = GetComponent<VR_HP_Enemy>();
         myArea = GetComponentInParent<VR_TrainingArea>();
-        atk_CoolDown = 0f;
+        if (interactor_right != null && interactor_right.hasSelection)
+        {
+            lastPos = interactor_right.interactablesSelected[0].transform.position;
+        }
+        else
+        {
+            lastPos = sword.gameObject.transform.position;
+        }
     }
 
     // 當一個訓練"回合"開始時被呼叫
@@ -222,7 +146,28 @@ public class VR_Enemy : Agent
     {
         List<float> obs = new List<float>();
         Vector3 toPlayer = playerTransform.position - transform.position;
+        Vector3 toWeapon = lastPos - transform.position;
         Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
+        Vector3 forwardDir; // for camera same as playerForwared
+
+        // for manual
+        if (interactor_right != null && interactor_right.hasSelection)
+        {
+            var interactable = interactor_right.interactablesSelected[0];
+            currentWeaponTransform = interactable.transform;
+            IsHoldingWeapon = true;
+            forwardDir = playerCamera.forward;
+            CameraRotationAngles = playerCamera.eulerAngles;
+        }
+        // for training
+        else
+        {
+            IsHoldingWeapon = true;
+            currentWeaponTransform = sword.gameObject.GetComponent<VR_Sword>().swordTip;
+            forwardDir = playerTransform.forward;
+            CameraRotationAngles = playerTransform.eulerAngles;
+        }
+        CalculatePhysics(currentWeaponTransform);
 
         Vector3 enemyForward = enemyObj.forward.normalized;
         obs.AddRange(new float[] { enemyForward.x, enemyForward.y, enemyForward.z });
@@ -233,12 +178,21 @@ public class VR_Enemy : Agent
         obs.AddRange(new float[] { playerVel.x, playerVel.y, playerVel.z });
         Vector3 playerForward = playerTransform.forward.normalized;
         obs.AddRange(new float[] { playerForward.x, playerForward.y, playerForward.z });
-        obs.Add((int)player_Behavior.GetCurrentState());
+        // obs.Add((int)player_Behavior.GetCurrentState()); //cheat
         obs.Add((int)curState);
-        obs.Add(player_Behavior.GetActionProgress());
+        // obs.Add(player_Behavior.GetActionProgress()); //cheat
         obs.Add(actionProgress);
         obs.Add((float)enemy_HP.GetCurrentHealth() / enemy_HP.maxHP);
         obs.Add((float)player_HP.GetCurrentHealth() / player_HP.maxHP);
+        //for VR
+        obs.Add(IsHoldingWeapon ? 1.0f : 0.0f);
+        // obs.Add(forwardDir) // represent with playerForward
+        // obs.AddRange(new float[] { CameraRotationAngles.x, CameraRotationAngles.y, CameraRotationAngles.z }); //later on
+        obs.AddRange(new float[] { WeaponVelocity.x, WeaponVelocity.y, WeaponVelocity.z });
+        // obs.AddRange(new float[] { WeaponAngularVelocity.x, WeaponAngularVelocity.y, WeaponAngularVelocity.z });
+        Vector3 toWeaponDir = toWeapon.normalized;
+        obs.AddRange(new float[] { toWeaponDir.x, toWeaponDir.y, toWeaponDir.z });
+        obs.Add(toWeapon.magnitude);
 
         return obs;
     }
@@ -260,10 +214,10 @@ public class VR_Enemy : Agent
         if (curState == EnemyState.StartUp || curState == EnemyState.Recovery || curState == EnemyState.Defending)
         {
             // (攻擊): 禁用 1~4，只留 0 (不攻)
-            actionMask.SetActionEnabled(1, 1, false);
-            actionMask.SetActionEnabled(1, 2, false);
-            actionMask.SetActionEnabled(1, 3, false);
-            actionMask.SetActionEnabled(1, 4, false);
+            actionMask.SetActionEnabled(0, 1, false);
+            actionMask.SetActionEnabled(0, 2, false);
+            actionMask.SetActionEnabled(0, 3, false);
+            actionMask.SetActionEnabled(0, 4, false);
         }
         else
         {
@@ -276,8 +230,14 @@ public class VR_Enemy : Agent
     // 接收來自神經網路的動作指令 (1 個值)
     public override void OnActionReceived(ActionBuffers actions)
     {
-        int moveAction = actions.DiscreteActions[0];
-        UpdateMoveDirection(moveAction);
+        float moveX = actions.ContinuousActions[0];
+        float moveZ = actions.ContinuousActions[1];
+        moveDirection = (orientation.right * moveX + orientation.forward * moveZ).normalized;
+        if (moveDirection.sqrMagnitude > 0.001f)
+        {
+            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection, Time.fixedDeltaTime * rotationSpeed);
+        }
+
         // --- 2. 根據狀態決定是否能執行新指令 (攻擊/防禦) ---
         // 如果正在攻擊流程中或防禦中，則不處理新的攻擊或防禦指令。
         if (curState == EnemyState.StartUp || curState == EnemyState.Defending)
@@ -292,7 +252,7 @@ public class VR_Enemy : Agent
             return;
         }
         // --- 3. 執行狀態切換指令 (此時狀態必為 Idle) ---
-        int attackAction = actions.DiscreteActions[1];
+        int attackAction = actions.DiscreteActions[0];
         // int defendAction = actions.DiscreteActions[2];
 
         // if (defendAction == 1)
@@ -381,25 +341,7 @@ public class VR_Enemy : Agent
             }
         }
 
-        AddCustomReward(0.00001f, "constant_reward");
-    }
-    private void UpdateMoveDirection(int moveAction)
-    {
-        Vector3 moveInput = Vector3.zero;
-        switch (moveAction)
-        {
-            case 1: moveInput = orientation.forward; break;
-            case 2: moveInput = -orientation.forward; break;
-            case 3: moveInput = -orientation.right; break;
-            case 4: moveInput = orientation.right; break;
-        }
-        moveDirection = moveInput;
-        moveDirection.y = 0f;
-
-        if (moveDirection != Vector3.zero)
-        {
-            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.fixedDeltaTime * rotationSpeed);
-        }
+        AddCustomReward(0.00001f, ""); // constant_reward
     }
 
     // 在 FixedUpdate 中檢查結束條件是個好習慣，因為它與物理更新同步
@@ -412,10 +354,7 @@ public class VR_Enemy : Agent
         {
             float timeBonus = (maxEpisodeTime - episodeTimer) / maxEpisodeTime;
             AddCustomReward(timeBonus * 0.5f, "timeBonus_reward");
-            if (enemy_HP.CurrentHP == 100)
-            {
-                AddCustomReward(1, "fuul_health_reward");
-            }
+            AddCustomReward(enemy_HP.CurrentHP / 100, "health_reward_ending");
             SetReward(1);
             if (printEndReward)
             {
@@ -472,6 +411,7 @@ public class VR_Enemy : Agent
             return;
         }
 
+        // move
         if (curState != EnemyState.StartUp && curState != EnemyState.Defending)
         {
             if (moveDirection != Vector3.zero)
@@ -487,7 +427,7 @@ public class VR_Enemy : Agent
         {
             myArea.TriggerEpisodeEnd();
         }
-        var playerAgent = playerTransform.GetComponent<Player_Agent>();
+        var playerAgent = playerTransform.GetComponent<VR_Player_Agent>();
         if(playerAgent != null)
         {
             playerAgent.EndEpisode();
@@ -595,15 +535,24 @@ public class VR_Enemy : Agent
         var discreteActions = actionsOut.DiscreteActions;
 
         // 1. 獲取鍵盤實例
+        var continuousActions = actionsOut.ContinuousActions;
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
 
         // --- 手動控制移動 ---
-        int moveAction = 0;
-        if (keyboard.upArrowKey.isPressed) moveAction = 1;
-        else if (keyboard.downArrowKey.isPressed) moveAction = 2;
-        else if (keyboard.leftArrowKey.isPressed) moveAction = 3;
-        else if (keyboard.rightArrowKey.isPressed) moveAction = 4;
+        // int moveAction = 0;
+        // if (keyboard.upArrowKey.isPressed) moveAction = 1;
+        // else if (keyboard.downArrowKey.isPressed) moveAction = 2;
+        // else if (keyboard.leftArrowKey.isPressed) moveAction = 3;
+        // else if (keyboard.rightArrowKey.isPressed) moveAction = 4;
+
+        float x = 0f;
+        float z = 0f;
+
+        if (keyboard.leftArrowKey.isPressed) x = -1f;
+        if (keyboard.rightArrowKey.isPressed) x = 1f;
+        if (keyboard.upArrowKey.isPressed) z = 1f;
+        if (keyboard.downArrowKey.isPressed) z = -1f;
 
         // --- 手動控制攻擊 ---
         int attackAction = 0;
@@ -616,8 +565,10 @@ public class VR_Enemy : Agent
         }
 
         // 2. 將數值填入對應的通道 (必須對應 Behavior Parameters 的 Branches)
-        discreteActions[0] = moveAction;
-        discreteActions[1] = attackAction;
+        //discreteActions[0] = moveAction;
+        continuousActions[0] = x;
+        continuousActions[1] = z;
+        discreteActions[0] = attackAction;
     }
     public EnemyState GetEnemyState()
     {
@@ -636,7 +587,7 @@ public class VR_Enemy : Agent
         // {
         //     AddReward(reward);
         // }
-        AddCustomReward(damageDealt / 100.0f, "damage_reward");
+        AddCustomReward(damageDealt / 50.0f, "damage_reward");
     }
     public void OnDamageTakenFromMelee(int damageTaken)
     {
@@ -648,7 +599,7 @@ public class VR_Enemy : Agent
     }
     public void OnPlayerAttackMissed()
     {
-        AddCustomReward(0.1f, "avoid_attack_reward");
+        AddCustomReward(0.2f, "avoid_attack_reward");
     }
     public void OnPlayerLongAttackMissed()
     {
@@ -659,8 +610,8 @@ public class VR_Enemy : Agent
 
     private void AddCustomReward(float value, string reason = "")
     {
-        currentStepReward += value;  // 暫存總和
-        AddReward(value);            // 繼續讓 ML-Agent 知道
+        currentStepReward += value;
+        AddReward(value);
         if (printReward && !string.IsNullOrEmpty(reason))
         {
             Debug.Log($"[Reward] {reason}: {value}");

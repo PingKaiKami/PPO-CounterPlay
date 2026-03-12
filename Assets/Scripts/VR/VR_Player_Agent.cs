@@ -46,58 +46,6 @@ public class VR_Player_Agent : Agent
         if (enemyHP != null) enemyHP.ResetHealth();
     }
 
-    void FixedUpdate()
-    {
-        episodeTimer += Time.fixedDeltaTime;
-
-        // 1. 檢查自己死亡 (Player 輸了 -> Enemy Wins)
-        if (playerHP != null && playerHP.IsDead())
-        {         
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                // 注意：這裡 winner 是 "Enemy"，因為 Player 死了
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 2. 檢查敵人死亡 (Player 贏了 -> Player Wins)
-        if (enemyHP != null && enemyHP.IsDead())
-        {
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                // 注意：這裡 winner 是 "Player"，因為 Enemy 死了
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 3. 時間到 (Draw)
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 4. 掉出地圖
-        if (transform.localPosition.y < -5f)
-        {
-            EndEpisode();
-        }
-    }
-
     public override void CollectObservations(VectorSensor sensor)
     {
         Vector3 toTarget = Vector3.zero;
