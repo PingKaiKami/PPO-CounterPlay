@@ -72,8 +72,8 @@ public class Enemy_Agent : Agent
             // 先複製舊的設定
             int[] newBranchSizes = (int[])actionSpec.BranchSizes.Clone();
 
-            // 修改指定分支的大小
-            newBranchSizes[1] = newAttackBranchSize;
+            // 修改指定分支的大小 (現在攻擊是 Branch 0，因為移動變成了 Continuous)
+            newBranchSizes[0] = newAttackBranchSize;
 
             // 5. 將修改後的新設定應用回去
             actionSpec.BranchSizes = newBranchSizes;
@@ -194,7 +194,17 @@ public class Enemy_Agent : Agent
     public override void OnActionReceived(ActionBuffers actions)
     {
         int moveAction = actions.DiscreteActions[0];
-        UpdateMoveDirection(moveAction);
+        
+        // 定義移動邏輯
+        moveDirection = Vector3.zero;
+        switch (moveAction)
+        {
+            case 1: moveDirection = transform.forward; break;
+            case 2: moveDirection = -transform.forward; break;
+            case 3: moveDirection = -transform.right; break;
+            case 4: moveDirection = transform.right; break;
+        }
+
         // --- 2. 根據狀態決定是否能執行新指令 (攻擊/防禦) ---
         // 如果正在攻擊流程中或防禦中，則不處理新的攻擊或防禦指令。
         if (curState == EnemyState.StartUp || curState == EnemyState.Defending)
@@ -298,97 +308,12 @@ public class Enemy_Agent : Agent
             }
         }
 
-        AddCustomReward(0.00001f, "constant_reward");
-    }
-    private void UpdateMoveDirection(int moveAction)
-    {
-        Vector3 moveInput = Vector3.zero;
-        switch (moveAction)
-        {
-            case 1: moveInput = orientation.forward; break;
-            case 2: moveInput = -orientation.forward; break;
-            case 3: moveInput = -orientation.right; break;
-            case 4: moveInput = orientation.right; break;
-        }
-        moveDirection = moveInput;
-        moveDirection.y = 0f;
-
-        if (moveDirection != Vector3.zero)
-        {
-            enemyObj.forward = Vector3.Slerp(enemyObj.forward, moveDirection.normalized, Time.fixedDeltaTime * rotationSpeed);
-        }
+        AddCustomReward(0.00001f, ""); 
     }
 
     // 在 FixedUpdate 中檢查結束條件是個好習慣，因為它與物理更新同步
     void FixedUpdate()
     {
-        episodeTimer += Time.fixedDeltaTime;
-
-        // 條件 a: 玩家死亡 (敵人獲勝)
-        if (player_HP != null && player_HP.IsDead())
-        {
-            float timeBonus = (maxEpisodeTime - episodeTimer) / maxEpisodeTime;
-            AddCustomReward(timeBonus * 0.5f, "timeBonus_reward");
-            if (enemy_HP.CurrentHP == 100)
-            {
-                AddCustomReward(1, "fuul_health_reward");
-            }
-            SetReward(1);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
-        // 條件 b: 敵人自己死亡 (敵人失敗)
-        if (enemy_HP != null && enemy_HP.IsDead())
-        {
-            SetReward(-1);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
-        // 條件 c: 時間到 (平手或未完成)
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            SetReward(-2);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
-        if (playerTransform.position.y < -5)
-        {
-            SetReward(0f);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Player fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
         if (curState != EnemyState.StartUp && curState != EnemyState.Defending)
         {
             if (moveDirection != Vector3.zero)
@@ -398,6 +323,49 @@ public class Enemy_Agent : Agent
             }
         }
     }
+
+    public void ResolveEpisode(string result, float timer, float maxTime)
+    {
+        float timeBonus = (maxTime - timer) / maxTime;
+        switch (result)
+        {
+            case "Enemy":
+                // 獲勝獎勵：1分基礎分 + 時間獎勵（越快贏獎勵越高）
+                AddCustomReward(timeBonus * 0.5f, "timeBonus_reward");
+                SetReward(1);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
+                }
+                break;
+            case "Player":
+                // 失敗懲罰：-1分 + 時間懲罰
+                AddCustomReward(timeBonus * -0.5f, "timeBonus_penalty");
+                SetReward(-1);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
+            case "Draw":
+                // 平手懲罰：通常設為較高的負分以鼓勵主動進攻
+                SetReward(-2);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
+            case "Fall":
+                SetReward(0f);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
+        }
+        EndEpisode();
+    }
+
     private void EndAndCleanupEpisode()
     {
         if (myArea != null)
@@ -472,7 +440,7 @@ public class Enemy_Agent : Agent
                 {
                     AddCustomReward(-0.1f, "attack_angle_penalty");
                 }
-                AddCustomReward(-0.1f, "attack_failed_penalty");
+                AddCustomReward(-0.05f, "attack_failed_penalty");
             }
 
             if(step.recoveryTime != 0)
@@ -509,21 +477,20 @@ public class Enemy_Agent : Agent
     // 用於手動測試，確保動作設定正確
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        var discreteActions = actionsOut.DiscreteActions;
-        discreteActions.Clear();
+        var discActions = actionsOut.DiscreteActions;
 
-        // 手動控制移動
+        // 手動控制移動 (Discrete 0)
         int moveAction = 0;
         if (Input.GetKey(KeyCode.UpArrow)) moveAction = 1;
-        if (Input.GetKey(KeyCode.DownArrow)) moveAction = 2;
-        if (Input.GetKey(KeyCode.LeftArrow)) moveAction = 3;
-        if (Input.GetKey(KeyCode.RightArrow)) moveAction = 4;
+        else if (Input.GetKey(KeyCode.DownArrow)) moveAction = 2;
+        else if (Input.GetKey(KeyCode.LeftArrow)) moveAction = 3;
+        else if (Input.GetKey(KeyCode.RightArrow)) moveAction = 4;
+        discActions[0] = moveAction;
 
         // 手動控制攻擊
         int attackAction = 0;
         if (comboPatterns != null && comboPatterns.Length > 0)
         {
-            // normal attack
             if (Input.GetKey(KeyCode.Alpha1))
             {
                 attackAction = 1;
@@ -548,8 +515,7 @@ public class Enemy_Agent : Agent
         // 手動控制防禦
         // int defendAction = Input.GetKey(KeyCode.F2) ? 1 : 0;
 
-        discreteActions[0] = moveAction;
-        discreteActions[1] = attackAction;
+        discActions[1] = attackAction;
         // discreteActions[2] = defendAction;
     }
     public EnemyState GetEnemyState()
@@ -558,22 +524,11 @@ public class Enemy_Agent : Agent
     }
     public void OnDamageDealt(int damageDealt)
     {
-        // float reward = damageDealt / 10.0f;
-        // var pState = player_Behavior.GetCurrentState();
-
-        // if (pState == Player_Behavior.PlayerState.Recovery)
-        // {
-        //     AddReward(2 * reward);
-        // }
-        // else
-        // {
-        //     AddReward(reward);
-        // }
-        AddCustomReward(damageDealt / 100.0f, "damage_reward");
+        AddCustomReward(damageDealt / 50.0f, "damage_reward");
     }
     public void OnDamageTakenFromMelee(int damageTaken)
     {
-        AddCustomReward(-damageTaken / 50.0f, "damage_from_melee_penalty");
+        AddCustomReward(-damageTaken / 60.0f, "damage_from_melee_penalty");
     }
     public void OnDamageTakenFromRanged(int damageTaken)
     {

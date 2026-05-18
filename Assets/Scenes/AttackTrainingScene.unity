@@ -8171,7 +8171,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &458724629
 Transform:
   m_ObjectHideFlags: 0
@@ -26482,6 +26482,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentStats: []
+  liveSummary: 
 --- !u!4 &1480148731
 Transform:
   m_ObjectHideFlags: 0
@@ -38425,12 +38426,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 5022602860645237092, guid: e271ff806d1813442bdffc261976ed2a,
-        type: 3}
+      objectReference: {fileID: 0}
     - target: {fileID: 2842456821889199850, guid: 1576bfd76ec3c4448bd9745c90c5eada,
         type: 3}
       propertyPath: m_BehaviorType
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3141775289514025993, guid: 1576bfd76ec3c4448bd9745c90c5eada,
         type: 3}
@@ -38500,7 +38500,7 @@ PrefabInstance:
     - target: {fileID: 7251102566499771942, guid: 1576bfd76ec3c4448bd9745c90c5eada,
         type: 3}
       propertyPath: curMode
-      value: 11
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7251102566499771942, guid: 1576bfd76ec3c4448bd9745c90c5eada,
         type: 3}
@@ -38510,7 +38510,7 @@ PrefabInstance:
     - target: {fileID: 7251102566499771942, guid: 1576bfd76ec3c4448bd9745c90c5eada,
         type: 3}
       propertyPath: IsUseInternalLogic
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

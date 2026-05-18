@@ -13,6 +13,7 @@ public abstract class Player_Behavior : MonoBehaviour
     [SerializeField] private ThirdPersonCamera thirdPersonCamera;
     public GameObject enemy;
     public Transform target;
+    public Transform firePoint; // VR 中可指定為右手或弓的位置
     public Transform orientation;
 
     [Header("Behavior Settings")]
@@ -89,6 +90,12 @@ public abstract class Player_Behavior : MonoBehaviour
             aimLine.enabled = false;
             mat_line = aimLine.material;
         }
+        
+        if (firePoint == null)
+        {
+            firePoint = transform;
+        }
+
         rb = GetComponent<Rigidbody>();
         attackRange = GetComponentInChildren<AttackRange>();
         if (attackRange != null) attackRadius = attackRange.radius;
@@ -158,16 +165,23 @@ public abstract class Player_Behavior : MonoBehaviour
     {
         if (!IsUseInternalLogic || curMode == TrainingMode.GAIL) return;
 
+        // 如果正在衝刺或攻擊啟動中，不接受新的邏輯指令（除非是 Recovery 或 Idle）
         if (CurrentState == PlayerState.StartUp || _isDashing) return;
-
-        // currentController = $"Script (Logic) - Frame: {Time.frameCount}";
 
         // A. 思考 (問大腦)
         AI_Intent intent = GetLogicIntent(curMode);
 
         // B. 執行 (動身體)
-        ExecuteAgentAction(intent.moveDirection, intent.lookDirection, intent.wantsDash, intent.wantsDashAttack, intent.wantsAttack, intent.wantsLongAttack);
+        ExecuteAgentAction(
+            intent.moveDirection, 
+            intent.lookDirection, 
+            intent.wantsDash, 
+            intent.wantsDashAttack, 
+            intent.wantsAttack, 
+            intent.wantsLongAttack
+        );
     }
+
     public struct AI_Intent
     {
         public Vector3 moveDirection;
@@ -218,7 +232,10 @@ public abstract class Player_Behavior : MonoBehaviour
 
             case TrainingMode.SmartAttack:
                 var enemyAgent = enemy.GetComponent<Enemy_Agent>();
-                _isSmartAtk = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery && CurrentState == PlayerState.Idle);
+                // 偵測敵人是否進入 Recovery 狀態
+                bool enemyInRecovery = (enemyAgent != null && enemyAgent.GetEnemyState() == Enemy_Agent.EnemyState.Recovery);
+                _isSmartAtk = (enemyInRecovery && CurrentState == PlayerState.Idle);
+                
                 if (_isSmartAtk)
                     intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
                 else
@@ -382,44 +399,56 @@ public abstract class Player_Behavior : MonoBehaviour
 
         return intent;
     }
-    // 增加一個供 Agent 執行動作的接口
+
     public void ExecuteAgentAction(Vector3 moveDir, Vector3 lookDir, bool dash, bool dashAtk, bool atk, bool longAtk)
     {
-        if(CurrentState == PlayerState.StartUp || _isDashing) 
+        // 物理層保護：正在執行硬直動作時，不允許切換新動作
+        if (CurrentState == PlayerState.StartUp || _isDashing) 
             return;
+
         // 1. 執行移動
         ApplyMovement(moveDir);
 
-        // 2. 執行旋轉
+        // 2. 執行旋轉 (若無旋轉輸入則跟隨移動方向)
         Vector3 finalLookDir = (lookDir.sqrMagnitude > 0.001f) ? lookDir : moveDir;
         ApplyRotation(finalLookDir);
 
+        // 3. 處理 Waiting 狀態 (與 VR 版本同步，不再直接回歸 Idle)
         if (CurrentState == PlayerState.Waiting)
         {
             ProcessWaitingState();
             return;
         }
-        // 3. 執行動作
+
+        // 4. 觸發新動作 (僅限 Idle 或 Recovery)
         if (CurrentState == PlayerState.Idle || CurrentState == PlayerState.Recovery)
         {
             if (dash && _canDash) 
             {
                 Vector3 finalDashDir = (moveDir == Vector3.zero) ? transform.forward : moveDir;
-                if(curMode == TrainingMode.AtkDashRanged) finalDashDir = -finalDashDir;
+                // 特殊訓練模式修正 (逃跑衝刺)
+                if (curMode == TrainingMode.AtkDashRanged) finalDashDir = -finalDashDir;
                 StartCoroutine(Dash(finalDashDir));
             }
-            else if(dashAtk && _canDash)
+            else if (dashAtk && _canDash)
             {
                 Vector3 finalDashDir = (finalLookDir == Vector3.zero) ? transform.forward : finalLookDir;
                 StartCoroutine(Dash(finalDashDir, true)); 
             }
             else if (atk) StartCoroutine(Attack());
-            else if (longAtk) StartCoroutine(LongAttack());
+            else if (longAtk) 
+            {
+                // 根據模式決定使用手動瞄準還是 AI 自動瞄準協程
+                if (curMode == TrainingMode.Manual) StartCoroutine(ManualLongAttack());
+                else StartCoroutine(LongAttack());
+            }
         }
     }
+
     private void ProcessWaitingState()
     {
-        if (Random.value < waitingRecoveryChance * Time.fixedDeltaTime)
+        // 每一物理幀都有機率從 Waiting 回歸 Idle
+        if (Random.value < waitingRecoveryChance)
         {
             CurrentState = PlayerState.Idle;
         }
@@ -449,6 +478,9 @@ public abstract class Player_Behavior : MonoBehaviour
 
     private void ApplyRotation(Vector3 direction)
     {
+        // 如果正在瞄準，旋轉邏輯交由 LongAttack 協程控制
+        if (_isAiming) return;
+
         direction.y = 0f; 
 
         if (direction.sqrMagnitude > 0.01f)
@@ -548,6 +580,7 @@ public abstract class Player_Behavior : MonoBehaviour
                 Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * aimingRotationSpeed);
             }
+            UpdateAimLine();
             yield return new WaitForFixedUpdate();
         }
         float bonusTime = Random.Range(0, longAttackStartUpBonusTime);
@@ -570,11 +603,13 @@ public abstract class Player_Behavior : MonoBehaviour
                 Quaternion targetRotation = Quaternion.LookRotation(currentDirectionToTarget.normalized);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * aimingRotationSpeed);
             }
+            UpdateAimLine();
             yield return new WaitForFixedUpdate();
         }
 
-        Vector3 spawnPos = transform.position + transform.forward;
-        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation, projectileParent);
+        Vector3 spawnPos = firePoint.position;
+        Quaternion spawnRot = firePoint.rotation;
+        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, spawnRot, projectileParent);
         _activeProjectiles.Add(newArrow);
         var arrowComp = newArrow.GetComponent<Arrow>();
         if (arrowComp != null)
@@ -586,6 +621,8 @@ public abstract class Player_Behavior : MonoBehaviour
         newArrow.GetComponent<Rigidbody>().velocity = transform.forward * actualArrowSpeed;
 
         CurrentState = PlayerState.Recovery;
+        if (aimLine != null) aimLine.enabled = false;
+
         _actionProgress = 0f;
         time = 0f;
         targetColor = Color.white;
@@ -637,8 +674,9 @@ public abstract class Player_Behavior : MonoBehaviour
 
             yield return new WaitForFixedUpdate();
         }
-        Vector3 spawnPos = transform.position + transform.forward;
-        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, transform.rotation, projectileParent);
+        Vector3 spawnPos = firePoint.position;
+        Quaternion spawnRot = firePoint.rotation;
+        GameObject newArrow = Instantiate(arrowPrefab, spawnPos, spawnRot, projectileParent);
         _activeProjectiles.Add(newArrow);
         var arrowComp = newArrow.GetComponent<Arrow>();
         if (arrowComp != null)
@@ -680,7 +718,7 @@ public abstract class Player_Behavior : MonoBehaviour
             aimLine.enabled = true;
         }
 
-        Vector3 rayStartPoint = transform.position + Vector3.up * 0.5f;
+        Vector3 rayStartPoint = firePoint.position;
         float rayLength = 15.0f;
 
         Vector3 rayEndPoint = rayStartPoint + transform.forward * rayLength;
@@ -718,6 +756,8 @@ public abstract class Player_Behavior : MonoBehaviour
             {
                 // exclude escape, onlydash, SmartAttack, GAIL mode and any long ranged mode
                 if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode!= TrainingMode.SmartAttack && mode != TrainingMode.GAIL && mode != TrainingMode.LongRangeAttack && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged)
+                // 移除對 LongRangeAttack 相關模式的過濾，以便 AI 進行遠程訓練
+                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode!= TrainingMode.SmartAttack && mode != TrainingMode.GAIL)
                 {
                     availableModes.Add(mode);
                 }

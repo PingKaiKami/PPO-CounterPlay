@@ -128,7 +128,8 @@ public class Enemy_Dodge_Agent : Agent
 
         if (moveDirection != Vector3.zero)
         {
-            transform.Translate(moveDirection.normalized * moveSpeed * Time.fixedDeltaTime, Space.World);
+            // 建議統一使用 Rigidbody 以確保物理正確性
+            GetComponent<Rigidbody>().MovePosition(transform.position + moveDirection.normalized * moveSpeed * Time.fixedDeltaTime);
         }
     }
     private void UpdateMoveDirection(int moveAction)

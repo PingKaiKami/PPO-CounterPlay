@@ -46,58 +46,6 @@ public class Player_Agent : Agent
         if (enemyHP != null) enemyHP.ResetHealth();
     }
 
-    void FixedUpdate()
-    {
-        episodeTimer += Time.fixedDeltaTime;
-
-        // 1. 檢查自己死亡 (Player 輸了 -> Enemy Wins)
-        if (playerHP != null && playerHP.IsDead())
-        {         
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                // 注意：這裡 winner 是 "Enemy"，因為 Player 死了
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 2. 檢查敵人死亡 (Player 贏了 -> Player Wins)
-        if (enemyHP != null && enemyHP.IsDead())
-        {
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                // 注意：這裡 winner 是 "Player"，因為 Enemy 死了
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 3. 時間到 (Draw)
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            // 【新增】回報給 BenchmarkManager
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", 0);
-            }
-
-            EndEpisode();
-            return;
-        }
-
-        // 4. 掉出地圖
-        if (transform.localPosition.y < -5f)
-        {
-            EndEpisode();
-        }
-    }
-
     public override void CollectObservations(VectorSensor sensor)
     {
         Vector3 toTarget = Vector3.zero;
@@ -122,8 +70,9 @@ public class Player_Agent : Agent
         
         sensor.AddObservation(toTarget); // 3
         sensor.AddObservation(dist); // 1
-        sensor.AddObservation(selfState); // 1
-        sensor.AddObservation(enemyState); // 1
+        // 將 Enum 轉換為 0~1 的正規化數值（雖然你不喜歡正規化，但 Enum 類別建議這樣做）
+        sensor.AddObservation(selfState / 6.0f); // 1
+        sensor.AddObservation(enemyState / 3.0f); // 1
         sensor.AddObservation(actionProgress_player); // 1
         sensor.AddObservation(actionProgress_enemy); // 1
         
@@ -162,25 +111,14 @@ public class Player_Agent : Agent
         bool atk = (skill == 3);
         bool longAtk = (skill == 4);
 
-        // 3. 【關鍵修改】決定面向 (Look Direction)
-        // 預設看移動方向
-        Vector3 lookDir = worldMoveVec;
-
-        // 如果有敵人，強制「鎖定敵人」(這樣才能實現側跳射擊、後退射擊)
+        // 3. 決定面向 (Look Direction)
+        // 統一交由 Player_Behavior 的邏輯意圖來決定，Agent 只負責「傳遞」
+        Vector3 lookDir = worldMoveVec; 
         if (player.target != null)
         {
-            Vector3 dirToTarget = player.target.position - transform.position;
-            dirToTarget.y = 0;
-            // 只有當距離大於極小值才更新，避免重疊時亂轉
-            if (dirToTarget.sqrMagnitude > 0.01f)
-            {
-                lookDir = dirToTarget.normalized;
-            }
+            lookDir = (player.target.position - transform.position).normalized;
         }
 
-        // 4. 執行
-        // moveDir = worldMoveVec (想往哪走)
-        // lookDir = lookDir (看著敵人)
         player.ExecuteAgentAction(worldMoveVec, lookDir, dash, dashAtk, atk, longAtk);
     }
 

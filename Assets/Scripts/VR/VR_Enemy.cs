@@ -15,7 +15,7 @@ public class VR_Enemy : Agent
     public int health;
     public Transform playerCamera;
     public XRBaseInteractor interactor_right;
-    public Vector3 WeaponAngularVelocity { get; private set; }
+    public float WeaponAngularVelocity { get; private set; }
     public Vector3 WeaponVelocity { get; private set; }
     public Vector3 CameraRotationAngles { get; private set; }
     public bool IsHoldingWeapon { get; private set; }
@@ -63,27 +63,14 @@ public class VR_Enemy : Agent
     private VR_Player_Behavior player_Behavior;
     private Rigidbody rb;
     private Vector3 moveDirection;
+    private Vector3 weaponVelocity; // 改為私有快取
+    private float weaponAngularVelocity;
     private float actionProgress;
     private VR_TrainingArea myArea;
-    private bool isHit = false;
     public float GetActionProgress() => actionProgress;
-    public bool GetIsEnemyGotHit() => isHit;
 
-    private void OnTriggerEnter(Collider other) 
+    private void UpdatePhysicsObservations(Transform target)
     {
-        if(other.CompareTag("Sword"))
-            isHit = true;
-    }
-    private void OnTriggerExit(Collider other) 
-    {
-        if(other.gameObject.name == "Sword")
-            isHit = false;
-    }
-
-    private void CalculatePhysics(Transform target)
-    {
-        WeaponVelocity = (target.position - lastPos) / Time.deltaTime;
-        lastPos = target.position;
     }
 
     void Start()
@@ -133,71 +120,39 @@ public class VR_Enemy : Agent
     // 收集觀測資訊
     public override void CollectObservations(VectorSensor sensor)
     {
-        List<float> observations = GetCurrentObservationsAsList();
-        // Debug.Log($"[Obs] Count: {observations.Count}, Data: {string.Join(", ", observations.ConvertAll(f => f.ToString("F2")))}");
-        
-        foreach (float val in observations)
-        {
-            sensor.AddObservation(val);
-        }
-    }
-
-    private List<float> GetCurrentObservationsAsList()
-    {
-        List<float> obs = new List<float>();
-        Vector3 toPlayer = playerTransform.position - transform.position;
-        Vector3 toWeapon = lastPos - transform.position;
+        // --- 1. 參考座標系轉換 ---
+        Vector3 localPlayerPos = transform.InverseTransformPoint(playerTransform.position);
         Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
-        Vector3 forwardDir; // for camera same as playerForwared
 
-        // for manual
+        // 取得武器當前變換
         if (interactor_right != null && interactor_right.hasSelection)
         {
-            var interactable = interactor_right.interactablesSelected[0];
-            currentWeaponTransform = interactable.transform;
+            currentWeaponTransform = interactor_right.interactablesSelected[0].transform;
             IsHoldingWeapon = true;
-            forwardDir = playerCamera.forward;
-            CameraRotationAngles = playerCamera.eulerAngles;
         }
-        // for training
         else
         {
             IsHoldingWeapon = true;
-            currentWeaponTransform = sword.gameObject.GetComponent<VR_Sword>().swordTip;
-            forwardDir = playerTransform.forward;
-            CameraRotationAngles = playerTransform.eulerAngles;
+            currentWeaponTransform = sword.gameObject.transform;
         }
-        CalculatePhysics(currentWeaponTransform);
 
-        Vector3 enemyForward = enemyObj.forward.normalized;
-        obs.AddRange(new float[] { enemyForward.x, enemyForward.y, enemyForward.z });
-        Vector3 toPlayerDir = toPlayer.normalized;
-        obs.AddRange(new float[] { toPlayerDir.x, toPlayerDir.y, toPlayerDir.z });
-        obs.Add(toPlayer.magnitude);
-        Vector3 playerVel = playerRb != null ? playerRb.velocity : Vector3.zero;
-        obs.AddRange(new float[] { playerVel.x, playerVel.y, playerVel.z });
-        Vector3 playerForward = playerTransform.forward.normalized;
-        obs.AddRange(new float[] { playerForward.x, playerForward.y, playerForward.z });
-        // obs.Add((int)player_Behavior.GetCurrentState()); //cheat
-        obs.Add((int)curState);
-        // obs.Add(player_Behavior.GetActionProgress()); //cheat
-        obs.Add(actionProgress);
-        obs.Add((float)enemy_HP.GetCurrentHealth() / enemy_HP.maxHP);
-        obs.Add((float)player_HP.GetCurrentHealth() / player_HP.maxHP);
-        //for VR
-        obs.Add(IsHoldingWeapon ? 1.0f : 0.0f);
-        // obs.Add(forwardDir) // represent with playerForward
-        // obs.AddRange(new float[] { CameraRotationAngles.x, CameraRotationAngles.y, CameraRotationAngles.z }); //later on
-        obs.AddRange(new float[] { WeaponVelocity.x, WeaponVelocity.y, WeaponVelocity.z });
-        // obs.AddRange(new float[] { WeaponAngularVelocity.x, WeaponAngularVelocity.y, WeaponAngularVelocity.z });
-        Vector3 toWeaponDir = toWeapon.normalized;
-        obs.AddRange(new float[] { toWeaponDir.x, toWeaponDir.y, toWeaponDir.z });
-        obs.Add(toWeapon.magnitude);
+        Vector3 localWeaponPos = transform.InverseTransformPoint(currentWeaponTransform.position);
+        Vector3 enemyForward = enemyObj.forward;
 
-        return obs;
+        // --- 2. 填充傳感器 (直接加入，避免 List 產生 GC) ---
+        sensor.AddObservation(enemyForward);                  // 3
+        sensor.AddObservation(localPlayerPos);                // 3
+        sensor.AddObservation(transform.InverseTransformDirection(playerRb.velocity)); // 3
+        sensor.AddObservation(transform.InverseTransformDirection(playerTransform.forward)); // 3
+        sensor.AddObservation((int)curState);                 // 1
+        sensor.AddObservation(actionProgress);                // 1
+        sensor.AddObservation((float)enemy_HP.GetCurrentHealth() / enemy_HP.maxHP); // 1
+        sensor.AddObservation((float)player_HP.GetCurrentHealth() / player_HP.maxHP); // 1
+        sensor.AddObservation(IsHoldingWeapon ? 1.0f : 0.0f); // 1
+        sensor.AddObservation(WeaponVelocity);                // 3
+        sensor.AddObservation(WeaponAngularVelocity);         // 1
+        sensor.AddObservation(localWeaponPos);                // 3
     }
-
-    // 在 Enemy_Agent.cs 中添加以下方法
 
     public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
     {
@@ -344,72 +299,16 @@ public class VR_Enemy : Agent
         AddCustomReward(0.00001f, ""); // constant_reward
     }
 
-    // 在 FixedUpdate 中檢查結束條件是個好習慣，因為它與物理更新同步
+    // 在 FixedUpdate 中處理物理移動
     void FixedUpdate()
     {
-        episodeTimer += Time.fixedDeltaTime;
-
-        // 條件 a: 玩家死亡 (敵人獲勝)
-        if (player_HP != null && player_HP.IsDead())
+        // 在物理幀中計算武器速度，確保觀測值的物理正確性
+        if (currentWeaponTransform != null)
         {
-            float timeBonus = (maxEpisodeTime - episodeTimer) / maxEpisodeTime;
-            AddCustomReward(timeBonus * 0.5f, "timeBonus_reward");
-            AddCustomReward(enemy_HP.CurrentHP / 100, "health_reward_ending");
-            SetReward(1);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Enemy", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
+            WeaponVelocity = (currentWeaponTransform.position - lastPos) / Time.fixedDeltaTime;
+            lastPos = currentWeaponTransform.position;
         }
-
-        // 條件 b: 敵人自己死亡 (敵人失敗)
-        if (enemy_HP != null && enemy_HP.IsDead())
-        {
-            SetReward(-1);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Player", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
-        // 條件 c: 時間到 (平手或未完成)
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            SetReward(-2);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            if (BenchmarkManager.Instance != null && isVerify)
-            {
-                BenchmarkManager.Instance.RecordEpisode(modelName, "Draw", GetCumulativeReward());
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
-
-        if (playerTransform.position.y < -5)
-        {
-            SetReward(0f);
-            if (printEndReward)
-            {
-                Debug.Log($"Episode End: Player fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
-            }
-            EndAndCleanupEpisode();
-            return;
-        }
+        WeaponAngularVelocity = sword.GetAngularSpeedRad();
 
         // move
         if (curState != EnemyState.StartUp && curState != EnemyState.Defending)
@@ -421,18 +320,43 @@ public class VR_Enemy : Agent
             }
         }
     }
-    private void EndAndCleanupEpisode()
+
+    public void ResolveEpisode(string result, float timer, float maxTime)
     {
-        if (myArea != null)
+        float timeBonus = (maxTime - timer) / maxTime;
+        switch (result)
         {
-            myArea.TriggerEpisodeEnd();
+            case "Enemy":
+                AddCustomReward(timeBonus * 0.5f, "timeBonus_reward");
+                SetReward(1);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Player Died (Enemy Wins) Cumulative Reward: {GetCumulativeReward()}");
+                }
+                break;
+            case "Player":
+                AddCustomReward(timeBonus * -0.5f, "timeBonus_penalty");
+                SetReward(-1);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Enemy Died (Player Wins) Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
+            case "Draw":
+                SetReward(-2);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Time Out. Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
+            case "Fall":
+                SetReward(0f);
+                if (printEndReward)
+                {
+                    Debug.Log($"Episode End: Player fall out of the map. Cumulative Reward: {GetCumulativeReward()}");    
+                }
+                break;
         }
-        var playerAgent = playerTransform.GetComponent<VR_Player_Agent>();
-        if(playerAgent != null)
-        {
-            playerAgent.EndEpisode();
-        }
-        EndEpisode();
     }
 
     IEnumerator Attack(ComboData combo)
@@ -495,7 +419,7 @@ public class VR_Enemy : Agent
                 {
                     AddCustomReward(-0.1f, "attack_angle_penalty");
                 }
-                AddCustomReward(-0.1f, "attack_failed_penalty");
+                AddCustomReward(-0.05f, "attack_failed_penalty");
             }
 
             if(step.recoveryTime != 0)
@@ -591,26 +515,18 @@ public class VR_Enemy : Agent
     }
     public void OnDamageTakenFromMelee(int damageTaken)
     {
-        AddCustomReward(-damageTaken / 50.0f, "damage_from_melee_penalty");
+        AddCustomReward(-damageTaken / 60.0f, "damage_from_melee_penalty");
     }
     public void OnDamageTakenFromRanged(int damageTaken)
     {
         AddCustomReward(-damageTaken / 50.0f, "damage_from_ranged_penalty");
     }
-    public void OnPlayerAttackMissed()
-    {
-        AddCustomReward(0.2f, "avoid_attack_reward");
-    }
     public void OnPlayerLongAttackMissed()
     {
         // AddReward(0.2f);
     }
-
-    private float currentStepReward = 0f;
-
     private void AddCustomReward(float value, string reason = "")
     {
-        currentStepReward += value;
         AddReward(value);
         if (printReward && !string.IsNullOrEmpty(reason))
         {

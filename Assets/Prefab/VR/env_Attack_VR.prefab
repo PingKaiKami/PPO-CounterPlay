@@ -10,8 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 33361120778379025}
   - component: {fileID: 5621494252980112793}
-  - component: {fileID: 228362242172238876}
-  m_Layer: 11
+  - component: {fileID: 8103976483881665715}
+  m_Layer: 10
   m_Name: AttackRange
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -27,11 +27,11 @@ Transform:
   m_GameObject: {fileID: 148256960340244034}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.5, z: 0}
-  m_LocalScale: {x: 1, y: 0.5, z: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5233316105549215374}
+  m_Father: {fileID: 6553064149840046850}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!135 &5621494252980112793
 SphereCollider:
@@ -52,9 +52,9 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 3
+  m_Radius: 1.5
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &228362242172238876
+--- !u!114 &8103976483881665715
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -63,11 +63,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 148256960340244034}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 72e1cfd091012ff4c9a3b5a4c1627922, type: 3}
+  m_Script: {fileID: 11500000, guid: 8aa8afa82df0c5a4e962ca5ed98e5df1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentRadius: 1.5
-  currentAngle: 90
+  radius: 1.5
+  angle: 90
 --- !u!1 &483532042317400181
 GameObject:
   m_ObjectHideFlags: 0
@@ -100,7 +100,7 @@ Transform:
   m_LocalScale: {x: 1, y: 2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 33361120778379025}
+  - {fileID: 10358846521940067}
   m_Father: {fileID: 774341521618759573}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &7261066698645916668
@@ -501,7 +501,6 @@ GameObject:
   - component: {fileID: 2184781352340042252}
   - component: {fileID: 5893605004864562054}
   - component: {fileID: 2923604565051923856}
-  - component: {fileID: 2935410279508757530}
   m_Layer: 10
   m_Name: PlayerObj
   m_TagString: Player
@@ -522,7 +521,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1522918286546871870}
+  - {fileID: 33361120778379025}
   - {fileID: 3342499146541942224}
   m_Father: {fileID: 3905686262820118142}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -597,22 +596,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2935410279508757530
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3587363149234459629}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0927d7dd5c9f1594498a6ae41b214f99, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Hand: {fileID: 0}
-  swordPivot: {fileID: 0}
-  smoothFollow: 1
-  followSpeed: 20
 --- !u!1 &3587926333642190293
 GameObject:
   m_ObjectHideFlags: 0
@@ -673,8 +656,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4688937942208342340}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 150, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 20, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -698,7 +681,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyInArea: {fileID: 5282798761590561923}
-  playerInArea: {fileID: 998353225800638845}
+  playerAgent: {fileID: 2866473035481384355}
+  maxEpisodeTime: 60
 --- !u!1 &4728655948990384915
 GameObject:
   m_ObjectHideFlags: 0
@@ -972,7 +956,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 9220763749309727198}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7078901844828539899
+--- !u!1 &6808848362094596541
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -980,7 +964,75 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6641554126100920452}
+  - component: {fileID: 10358846521940067}
+  - component: {fileID: 6262702739449630316}
+  - component: {fileID: 8082509603729777615}
+  m_Layer: 11
+  m_Name: AttackRange
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &10358846521940067
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6808848362094596541}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.5, z: 0}
+  m_LocalScale: {x: 1, y: 0.5, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5233316105549215374}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &6262702739449630316
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6808848362094596541}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 3
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &8082509603729777615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6808848362094596541}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72e1cfd091012ff4c9a3b5a4c1627922, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentRadius: 1.5
+  currentAngle: 90
+--- !u!1 &6893370529899654332
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2572241556849753992}
   m_Layer: 11
   m_Name: Orientation
   m_TagString: Untagged
@@ -988,13 +1040,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6641554126100920452
+--- !u!4 &2572241556849753992
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7078901844828539899}
+  m_GameObject: {fileID: 6893370529899654332}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1019,7 +1071,7 @@ GameObject:
   - component: {fileID: 3094074884899041218}
   - component: {fileID: 2866473035481384355}
   - component: {fileID: 5608099079872184204}
-  - component: {fileID: 7581717684082576136}
+  - component: {fileID: 6286385129126187634}
   m_Layer: 10
   m_Name: Player
   m_TagString: Untagged
@@ -1206,9 +1258,10 @@ MonoBehaviour:
   dashCooldown: 1
   damage: 15
   strafeRadius: 5
-  attackBodyRange: 0.5
+  attackBodyRange: 0.7
   attackBufferRange: 0.5
   attackStartUpTime: 0.5
+  attackTime: 1
   attackRecoveryTime: 1
   arrowPrefab: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234,
     type: 3}
@@ -1223,8 +1276,9 @@ MonoBehaviour:
   strafeSpeed: 1.5
   waitingRecoveryChance: 0.2
   CurrentState: 0
-  IsUseInternalLogic: 1
+  IsUseInternalLogic: 0
   printState: 0
+  isLogging: 0
 --- !u!114 &5023382273641008949
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1238,18 +1292,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 8
+    VectorObservationSize: 27
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 2
-      BranchSizes: 05000000
+      m_NumContinuousActions: 9
+      BranchSizes: 02000000
     VectorActionSize: 
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
-  m_BehaviorType: 1
+  m_BehaviorType: 0
   m_BehaviorName: PlayerAI
   TeamId: 0
   m_UseChildSensors: 1
@@ -1289,6 +1343,7 @@ MonoBehaviour:
   maxEpisodeTime: 60
   isVerify: 0
   printDebugObs: 0
+  printDebugCont: 0
   modelName: Player_GAIL
 --- !u!114 &5608099079872184204
 MonoBehaviour:
@@ -1304,7 +1359,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DecisionPeriod: 5
   TakeActionsBetweenDecisions: 1
---- !u!114 &7581717684082576136
+--- !u!114 &6286385129126187634
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1316,78 +1371,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
+  Record: 1
   NumStepsToRecord: 0
-  DemonstrationName: 
-  DemonstrationDirectory: 
---- !u!1 &8781819268962702702
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1522918286546871870}
-  - component: {fileID: 6962213034806775302}
-  - component: {fileID: 2347719336933799734}
-  m_Layer: 10
-  m_Name: AttackRange
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1522918286546871870
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8781819268962702702}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 6553064149840046850}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &6962213034806775302
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8781819268962702702}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 1.5
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2347719336933799734
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8781819268962702702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8aa8afa82df0c5a4e962ca5ed98e5df1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  radius: 1.5
-  angle: 90
+  DemonstrationName: PlayerData
+  DemonstrationDirectory: C:/Users/User/AI_Enemy/Demonstrations
 --- !u!1 &9125506428675439237
 GameObject:
   m_ObjectHideFlags: 0
@@ -1423,7 +1410,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 6641554126100920452}
+  - {fileID: 2572241556849753992}
   - {fileID: 5233316105549215374}
   m_Father: {fileID: 9220763749309727198}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1474,7 +1461,7 @@ MonoBehaviour:
   playerCamera: {fileID: 0}
   interactor_right: {fileID: 0}
   curState: 0
-  orientation: {fileID: 6641554126100920452}
+  orientation: {fileID: 2572241556849753992}
   enemyObj: {fileID: 5233316105549215374}
   sword: {fileID: 1931311510911452474}
   mr: {fileID: 4905670202072521732}
@@ -1485,7 +1472,7 @@ MonoBehaviour:
     attackSteps:
     - stepName: Normal Attack 1
       startupTime: 1
-      recoveryTime: 1
+      recoveryTime: 0.5
       damage: 25
       attackRange: 3
       attackAngle: 120
@@ -1529,7 +1516,7 @@ MonoBehaviour:
     - stepName: Triple Attack 1
       startupTime: 1.5
       recoveryTime: 0
-      damage: 10
+      damage: 20
       attackRange: 2
       attackAngle: 60
       forwardMovement: 1
@@ -1569,7 +1556,7 @@ MonoBehaviour:
     - stepName: Triple Attack 2
       startupTime: 0.5
       recoveryTime: 0
-      damage: 15
+      damage: 25
       attackRange: 2
       attackAngle: 60
       forwardMovement: 1
@@ -1600,10 +1587,10 @@ MonoBehaviour:
     - stepName: Triple Attack 3
       startupTime: 0.5
       recoveryTime: 2
-      damage: 20
+      damage: 30
       attackRange: 3
       attackAngle: 60
-      forwardMovement: 3
+      forwardMovement: 2
       movementCurve:
         serializedVersion: 2
         m_Curve:
@@ -1634,7 +1621,7 @@ MonoBehaviour:
     - stepName: Strong Attack 1
       startupTime: 1
       recoveryTime: 0
-      damage: 20
+      damage: 15
       attackRange: 2
       attackAngle: 180
       forwardMovement: 0
@@ -1665,10 +1652,10 @@ MonoBehaviour:
     - stepName: Strong Attack 2
       startupTime: 1
       recoveryTime: 3
-      damage: 40
+      damage: 30
       attackRange: 3
       attackAngle: 120
-      forwardMovement: 4
+      forwardMovement: 3
       movementCurve:
         serializedVersion: 2
         m_Curve:
@@ -1681,15 +1668,6 @@ MonoBehaviour:
           weightedMode: 0
           inWeight: 0
           outWeight: 0
-        - serializedVersion: 3
-          time: 0.81944615
-          value: 0.33655262
-          inSlope: 1.3620474
-          outSlope: 1.3620474
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0.33333334
-          outWeight: 0.46225816
         - serializedVersion: 3
           time: 1
           value: 1
@@ -1708,7 +1686,7 @@ MonoBehaviour:
     - stepName: Fast Attack 1
       startupTime: 0.5
       recoveryTime: 2
-      damage: 20
+      damage: 25
       attackRange: 2
       attackAngle: 90
       forwardMovement: 2
@@ -1724,6 +1702,15 @@ MonoBehaviour:
           weightedMode: 0
           inWeight: 0
           outWeight: 0
+        - serializedVersion: 3
+          time: 0.9121191
+          value: 0.36927417
+          inSlope: 1.2075715
+          outSlope: 1.2075715
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.33333334
         - serializedVersion: 3
           time: 1
           value: 1
@@ -1757,7 +1744,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 25
+    VectorObservationSize: 24
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 2
@@ -1766,9 +1753,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: bbcd15657525181408c947d55f10141c, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: EnemyAI
   TeamId: 0
   m_UseChildSensors: 1
@@ -1843,6 +1830,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Sword
       objectReference: {fileID: 0}
+    - target: {fileID: 6198461676652850980, guid: b91cfe449e2623348b257b691c023703,
+        type: 3}
+      propertyPath: player
+      value: 
+      objectReference: {fileID: 998353225800638845}
     - target: {fileID: 7109715793070141390, guid: b91cfe449e2623348b257b691c023703,
         type: 3}
       propertyPath: m_LocalPosition.x

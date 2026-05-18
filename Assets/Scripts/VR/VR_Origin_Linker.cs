@@ -12,7 +12,8 @@ public class VROriginLinker : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
-    void FixedUpdate()
+
+    void LateUpdate()
     {
         if (playerHead == null || playerBody == null || vrCamera == null) return;
 

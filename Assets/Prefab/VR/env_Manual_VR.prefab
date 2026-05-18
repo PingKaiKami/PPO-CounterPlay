@@ -217,8 +217,8 @@ GameObject:
   - component: {fileID: 4141389160841625182}
   - component: {fileID: 5279451124844119757}
   - component: {fileID: 8722388681746390011}
-  - component: {fileID: 1317653484578728694}
   - component: {fileID: 8500754722170489958}
+  - component: {fileID: 4708667099942109260}
   m_Layer: 11
   m_Name: Enemy
   m_TagString: Untagged
@@ -292,7 +292,7 @@ MonoBehaviour:
   curState: 0
   orientation: {fileID: 8103903632609798782}
   enemyObj: {fileID: 2673857820549188290}
-  sword: {fileID: 2368163652925404590}
+  sword: {fileID: 486839419998721669}
   mr: {fileID: 7879037349285862347}
   moveSpeed: 3
   rotationSpeed: 3
@@ -317,7 +317,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 32
+    VectorObservationSize: 26
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -334,20 +334,6 @@ MonoBehaviour:
   m_UseChildSensors: 1
   m_UseChildActuators: 1
   m_ObservableAttributeHandling: 0
---- !u!114 &1317653484578728694
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3178069327417687202}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13e429b73b32c6c4192a2d6a49d658da, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hpSlider: {fileID: 0}
-  maxHP: 100
 --- !u!114 &8500754722170489958
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -376,6 +362,20 @@ MonoBehaviour:
   rayMissColor: {r: 1, g: 1, b: 1, a: 1}
   m_StartVerticalOffset: 0
   m_EndVerticalOffset: 0
+--- !u!114 &4708667099942109260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3178069327417687202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e4a324f807b1aa4f9ee491db6204eb7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hpSlider: {fileID: 0}
+  maxHP: 100
 --- !u!1 &3612493417674906278
 GameObject:
   m_ObjectHideFlags: 0
@@ -697,10 +697,10 @@ GameObject:
   - component: {fileID: 6438097188183205101}
   - component: {fileID: 6876819004103075715}
   - component: {fileID: 1785170084999496642}
-  - component: {fileID: 5311367896603354748}
   - component: {fileID: 2670175686162176851}
   - component: {fileID: 5359609438851133525}
   - component: {fileID: 3900611513104517717}
+  - component: {fileID: 7921973275507114785}
   m_Layer: 10
   m_Name: Player
   m_TagString: Untagged
@@ -890,6 +890,7 @@ MonoBehaviour:
   attackBodyRange: 0.5
   attackBufferRange: 0.5
   attackStartUpTime: 0.5
+  attackTime: 1
   attackRecoveryTime: 1
   arrowPrefab: {fileID: 729541933619259740, guid: e0b2863333a505043ac20b7ba6e84234,
     type: 3}
@@ -904,8 +905,9 @@ MonoBehaviour:
   strafeSpeed: 1.5
   waitingRecoveryChance: 1
   CurrentState: 0
-  IsUseInternalLogic: 1
+  IsUseInternalLogic: 0
   printState: 0
+  isLogging: 0
 --- !u!114 &1785170084999496642
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -919,10 +921,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 8
+    VectorObservationSize: 4
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 2
+      m_NumContinuousActions: 9
       BranchSizes: 05000000
     VectorActionSize: 
     VectorActionDescriptions: []
@@ -936,21 +938,6 @@ MonoBehaviour:
   m_UseChildSensors: 1
   m_UseChildActuators: 1
   m_ObservableAttributeHandling: 0
---- !u!114 &5311367896603354748
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5645791040782604163}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 64e306312185ef349bd0af380829d12b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hpSlider: {fileID: 0}
-  maxHP: 100
-  enemyAgent: {fileID: 0}
 --- !u!114 &2670175686162176851
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -970,6 +957,7 @@ MonoBehaviour:
   maxEpisodeTime: 60
   isVerify: 0
   printDebugObs: 0
+  printDebugCont: 1
   modelName: Player_GAIL
 --- !u!114 &5359609438851133525
 MonoBehaviour:
@@ -1001,6 +989,21 @@ MonoBehaviour:
   NumStepsToRecord: 0
   DemonstrationName: 
   DemonstrationDirectory: 
+--- !u!114 &7921973275507114785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5645791040782604163}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 533baa1142a62944b8e74af9267d7761, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hpSlider: {fileID: 0}
+  maxHP: 100
+  enemyAgent: {fileID: 5279451124844119757}
 --- !u!1 &5719141560244514832
 GameObject:
   m_ObjectHideFlags: 0
@@ -1257,6 +1260,7 @@ GameObject:
   - component: {fileID: 6622858387275153904}
   - component: {fileID: 988916236035971332}
   - component: {fileID: 5946064732865494783}
+  - component: {fileID: 486839419998721669}
   m_Layer: 9
   m_Name: Sword
   m_TagString: Sword
@@ -1274,7 +1278,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 2.1699998, y: 1.3500004, z: 0.70000005}
-  m_LocalScale: {x: 0.099999994, y: 1, z: 0.099999994}
+  m_LocalScale: {x: 0.099999994, y: 0.7, z: 0.099999994}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6256206442191885759}
@@ -1530,6 +1534,22 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &486839419998721669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7106485601752979135}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 286bd1735ea88ab4e82264d5da19ed39, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  swordTip: {fileID: 6256206442191885759}
+  minAngularSpeedRad: 4.5
+  player: {fileID: 0}
+  isDebug: 0
 --- !u!1 &7283787726745517220
 GameObject:
   m_ObjectHideFlags: 0
@@ -1641,6 +1661,7 @@ GameObject:
   - component: {fileID: 5855684962154376626}
   - component: {fileID: 3916261293414068205}
   - component: {fileID: 7247251316911815409}
+  - component: {fileID: 8797147656552479442}
   m_Layer: 0
   m_Name: XR Device Simulator
   m_TagString: Untagged
@@ -1679,12 +1700,9 @@ MonoBehaviour:
     type: 3}
   m_ControllerActionAsset: {fileID: -944628639613478452, guid: 0be0028c24f2a4c14a96b6aa39055933,
     type: 3}
-  m_KeyboardXTranslateAction: {fileID: -2435995061748527091, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
-    type: 3}
-  m_KeyboardYTranslateAction: {fileID: 4091624078112751379, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
-    type: 3}
-  m_KeyboardZTranslateAction: {fileID: 8957443236229058949, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
-    type: 3}
+  m_KeyboardXTranslateAction: {fileID: 0}
+  m_KeyboardYTranslateAction: {fileID: 0}
+  m_KeyboardZTranslateAction: {fileID: 0}
   m_ManipulateLeftAction: {fileID: 3215650258570939094, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
     type: 3}
   m_ManipulateRightAction: {fileID: 138396950478516224, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
@@ -1729,8 +1747,7 @@ MonoBehaviour:
     type: 3}
   m_ToggleSecondary2DAxisTargetAction: {fileID: 1155009490345466815, guid: da2b439d1a2de5c46a4f428f8cf4fe19,
     type: 3}
-  m_Axis2DAction: {fileID: 8275859971367427353, guid: 0be0028c24f2a4c14a96b6aa39055933,
-    type: 3}
+  m_Axis2DAction: {fileID: 0}
   m_RestingHandAxis2DAction: {fileID: 6756245720351945193, guid: 0be0028c24f2a4c14a96b6aa39055933,
     type: 3}
   m_GripAction: {fileID: 5667446173830999989, guid: 0be0028c24f2a4c14a96b6aa39055933,
@@ -1772,8 +1789,7 @@ MonoBehaviour:
   m_MouseScrollRotateSensitivity: 0.05
   m_MouseYRotateInvert: 0
   m_DesiredCursorLockMode: 1
-  m_DeviceSimulatorUI: {fileID: 7662076761675301960, guid: ead42e0472b7547fbba6c229aeaf37d3,
-    type: 3}
+  m_DeviceSimulatorUI: {fileID: 0}
   m_GripAmount: 1
   m_TriggerAmount: 1
   m_HMDIsTracked: 1
@@ -2025,6 +2041,19 @@ MonoBehaviour:
     m_IsQuickAction: 0
   m_RestingHandExpressionCapture: {fileID: 11400000, guid: 5be099e6e6012c244bb41881b6c0ea07,
     type: 2}
+--- !u!114 &8797147656552479442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7450726698363477012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 017c5e3933235514c9520e1dace2a4b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ActionAssets: []
 --- !u!1 &8170239588935024066
 GameObject:
   m_ObjectHideFlags: 0
@@ -2078,6 +2107,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyInArea: {fileID: 5279451124844119757}
   playerInArea: {fileID: 6876819004103075715}
+  playerAgent: {fileID: 2670175686162176851}
+  maxEpisodeTime: 60
 --- !u!1 &8890270232678921742
 GameObject:
   m_ObjectHideFlags: 0
@@ -2195,7 +2226,6 @@ GameObject:
   - component: {fileID: 508991802336599522}
   - component: {fileID: 1172248872520184913}
   - component: {fileID: 510335956210739732}
-  - component: {fileID: 2282279119065542428}
   m_Layer: 10
   m_Name: PlayerObj
   m_TagString: Player
@@ -2291,19 +2321,3 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2282279119065542428
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9116938946020906999}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0927d7dd5c9f1594498a6ae41b214f99, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Hand: {fileID: 0}
-  swordPivot: {fileID: 0}
-  smoothFollow: 1
-  followSpeed: 20

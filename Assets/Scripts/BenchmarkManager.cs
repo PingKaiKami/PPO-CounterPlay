@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Text;
 
 public class BenchmarkManager : MonoBehaviour
 {
@@ -8,51 +9,31 @@ public class BenchmarkManager : MonoBehaviour
     [System.Serializable]
     public class ModelStats
     {
-        [Header("Identity")]
         public string modelName;
-
-        [Header("Raw Data")]
         public int totalEpisodes;
         public int enemyWins;
-        [HideInInspector] 
-        public float accumulatedReward; // 總分累加
+        public int draws;
+        public float accumulatedReward;
 
-        [Header("Calculated Metrics (Read Only)")]
-        public string meanRewardDisplay;        // 平均獎勵 (accumulatedReward / totalEpisodes)
-        public float winRatePercent;  // 勝率百分比
-
-        // 用來更新顯示數值的函數
-        public void Recalculate()
+        public string GetSummary()
         {
-            float mean;
-            if (totalEpisodes > 0)
-            {
-                mean = accumulatedReward / totalEpisodes;
-                winRatePercent = ((float)enemyWins / totalEpisodes) * 100f;
-            }
-            else
-            {
-                mean = 0;
-                winRatePercent = 0;
-            }
-
-            if (modelName.Contains("Player"))
-            {
-                meanRewardDisplay = "N/A (Imitation)";
-            }
-            else
-            {
-                meanRewardDisplay = mean.ToString("F3");
-            }
+            float winRate = totalEpisodes > 0 ? ((float)enemyWins / totalEpisodes) * 100f : 0;
+            float avgReward = totalEpisodes > 0 ? accumulatedReward / totalEpisodes : 0;
+            return $"{modelName}: Eps:{totalEpisodes} | Win:{winRate:F1}% | Draw:{draws} | AvgRew:{avgReward:F2}";
         }
     }
 
-    // 這一條 List 會顯示在 Inspector 上讓你即時監控
-    [Header("Live Statistics")]
+    // 使用 HideInInspector 讓 Unity 不要去畫這個容易崩潰的清單
+    [HideInInspector]
     public List<ModelStats> currentStats = new List<ModelStats>();
+    
+    // 改用這個來在 Inspector 看結果
+    [TextArea(10, 20)]
+    public string liveSummary;
 
-    // 這一條 Dictionary 用來快速查找 (程式邏輯用，Inspector 看不到)
     private Dictionary<string, ModelStats> statsLookup = new Dictionary<string, ModelStats>();
+    private bool _isDirty = false;
+    private float _lastUpdateTime;
 
     private void Awake()
     {
@@ -60,40 +41,53 @@ public class BenchmarkManager : MonoBehaviour
         Instance = this;
     }
 
+    private void Update()
+    {
+        if (_isDirty && Time.realtimeSinceStartup - _lastUpdateTime > 1.0f)
+        {
+            UpdateVisualSummary();
+            _isDirty = false;
+            _lastUpdateTime = Time.realtimeSinceStartup;
+        }
+    }
+
     public void RecordEpisode(string modelName, string winner, float finalReward)
     {
-        ModelStats stats;
+        if (string.IsNullOrEmpty(modelName)) return;
 
-        // 1. 如果這個模型是第一次出現，建立新資料並加入 List 和 Dictionary
         if (!statsLookup.ContainsKey(modelName))
         {
-            stats = new ModelStats { modelName = modelName };
-            statsLookup.Add(modelName, stats);
-            currentStats.Add(stats); // 加到 List 讓 Inspector 顯示
-        }
-        else
-        {
-            stats = statsLookup[modelName];
+            ModelStats newStats = new ModelStats { modelName = modelName };
+            statsLookup.Add(modelName, newStats);
+            currentStats.Add(newStats);
         }
 
-        // 2. 更新原始數據
+        ModelStats stats = statsLookup[modelName];
         stats.totalEpisodes++;
         stats.accumulatedReward += finalReward;
 
-        if (winner == "Enemy")
-        {
-            stats.enemyWins++;
-        }
+        if (winner == "Enemy") stats.enemyWins++;
+        else if (winner == "Draw") stats.draws++;
 
-        // 3. 重新計算平均值 (為了更新 Inspector 顯示)
-        stats.Recalculate();
+        _isDirty = true;
     }
 
-    // 提供一個按鈕或方法手動重置
+    private void UpdateVisualSummary()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("=== 訓練即時戰報 ===");
+        foreach (var s in currentStats)
+        {
+            sb.AppendLine(s.GetSummary());
+        }
+        liveSummary = sb.ToString();
+    }
+
     [ContextMenu("Reset Stats")]
     public void ResetAll()
     {
         currentStats.Clear();
         statsLookup.Clear();
+        liveSummary = "";
     }
 }

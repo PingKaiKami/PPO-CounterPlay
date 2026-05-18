@@ -12,6 +12,7 @@ public class AttackRange : MonoBehaviour
     public float angle = 90.0f;
 
     private SphereCollider detectionCollider;
+    private Collider[] results = new Collider[10]; // 預配置快取
 
     void Awake()
     {
@@ -71,10 +72,11 @@ public class AttackRange : MonoBehaviour
     {
         List<GameObject> enemiesInFan = new List<GameObject>();
         
-        Collider[] collidersInRange = Physics.OverlapSphere(transform.position, radius);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, radius, results);
 
-        foreach (Collider col in collidersInRange)
+        for (int i = 0; i < count; i++)
         {
+            Collider col = results[i];
             if (col.CompareTag("Enemy"))
             {
                 Vector3 directionToEnemy = (col.transform.position - transform.position).normalized;

@@ -9,6 +9,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.InputSystem.XR;
 
 using Unity.VisualScripting;
+using System.Text;
 
 public class VR_Player_Behavior : MonoBehaviour
 {
@@ -44,6 +45,7 @@ public class VR_Player_Behavior : MonoBehaviour
     public float attackBodyRange = 0.5f; // 因為敵人也有體積，所以加這個彌補
     public float attackBufferRange = 0.5f; // 讓玩家再靠近敵人一點再攻擊 (目前太常揮空了)
     public float attackStartUpTime = 0.5f;
+    public float attackTime = 1f;
     public float attackRecoveryTime = 1f;
 
     [Header("LongAttack")]
@@ -69,6 +71,11 @@ public class VR_Player_Behavior : MonoBehaviour
     public bool IsUseInternalLogic = false;
     public bool printState = false;
 
+    [Header("Data Recording")]
+    public bool isLogging = false; // 開關：是否開始錄製數據
+    private string csvPath;
+    private float lastStrafeInput = 0f; // 紀錄最後一次的側移量
+
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;
@@ -88,11 +95,18 @@ public class VR_Player_Behavior : MonoBehaviour
     private List<GameObject> _activeProjectiles = new List<GameObject>();
     public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
     private float _actionProgress = 0f;
+    private float _internalAttackTimer = -1f; // -1 表示不在攻擊中
+    private int decisionTime;
+    private Vector3 _currentSwordPos;
+    private Quaternion _currentSwordRot;
+    private Vector3 swordVelocity; // 儲存 SmoothDamp 用
     private LineRenderer aimLine;
     private VR_TrainingArea myArea;
     private Transform projectileParent;
-    private Animator sword_animator;
+    public GameObject activateSword { get; private set; }
+    private Vector3 swordOriPos;
     public PlayerState GetCurrentState() => CurrentState;
+    private StringBuilder _logCache = new StringBuilder();
     public bool IsAiming() => _isAiming;
     public float GetActionProgress() => _actionProgress;
     public bool IsEnemyInAttackRange(GameObject e) => attackRange != null && attackRange.IsSpecificEnemyInRange(e);
@@ -115,12 +129,15 @@ public class VR_Player_Behavior : MonoBehaviour
         if(rightController != null)
         {
             isForTraining = false;
-            sword_animator = rightController.GetComponent<Animator>();
+            activateSword = rightController.gameObject;
         }
         else
         {
             isForTraining = true;
+            activateSword = sword_object;
         }
+        swordOriPos = activateSword.transform.localPosition;
+
         if (myArea != null)
         {
             myArea.OnEpisodeEnd += ResetStateToIdle;
@@ -150,6 +167,8 @@ public class VR_Player_Behavior : MonoBehaviour
             FP_Camera.SetActive(true);
             TP_Camera_main.SetActive(false);
             TP_Camera_freelook.SetActive(false);
+            // 手動操作只能透過移動武器位置
+            activateSword.GetComponent<Animator>().enabled = false;
         }
         else
         {
@@ -158,6 +177,25 @@ public class VR_Player_Behavior : MonoBehaviour
                 FP_Camera.SetActive(false);
                 TP_Camera_main.SetActive(true);
                 TP_Camera_freelook.SetActive(true);
+            }
+        }
+        decisionTime = GetDecisionPeriod();
+        _currentSwordPos = Vector3.zero;
+        _currentSwordRot = Quaternion.identity;
+        if (isLogging)
+        {
+            // 初始化 CSV 存檔路徑 (存放在專案根目錄的 DataLogs 資料夾)
+            string folderPath = Application.dataPath + "/DataLogs";
+            if (!System.IO.Directory.Exists(folderPath)) System.IO.Directory.CreateDirectory(folderPath);
+            
+            // 根據目前的模式給予檔名，例如：Manual_Data.csv 或 GAIL_Data.csv
+            string modeLabel = IsUseInternalLogic ? "Human" : "AI";
+            csvPath = folderPath + $"/{modeLabel}_BattleData.csv";
+
+            // 如果檔案不存在，寫入表頭
+            if (!System.IO.File.Exists(csvPath))
+            {
+                System.IO.File.WriteAllText(csvPath, "Label,Distance,StrafingIntensity,AngularVelocity\n");
             }
         }
     }
@@ -201,17 +239,35 @@ public class VR_Player_Behavior : MonoBehaviour
     // main
     protected void UpdateBehavior()
     {
+        if (activateSword != null) {
+            activateSword.transform.localPosition = Vector3.SmoothDamp(
+                activateSword.transform.localPosition, 
+                _currentSwordPos, 
+                ref swordVelocity, 
+                0.08f 
+            );
+
+            activateSword.transform.localRotation = Quaternion.Slerp(
+                activateSword.transform.localRotation,
+                _currentSwordRot,
+                Time.fixedDeltaTime * 15f
+            );
+        }
+        // 這裡的邏輯門保持不變
         if (!IsUseInternalLogic || curMode == TrainingMode.GAIL) return;
+        if (_isDashing) return;
 
-        if (CurrentState == PlayerState.Attacking || _isDashing) return;
-
-        // currentController = $"Script (Logic) - Frame: {Time.frameCount}";
-
-        // A. 思考 (問大腦)
+        // A. 思考 (大腦會算出移動方向 + 武器該放在哪)
         AI_Intent intent = GetLogicIntent(curMode);
 
-        // B. 執行 (動身體)
-        ExecuteAgentAction(intent.moveDirection, intent.lookDirection, intent.wantsDash, intent.wantsDashAttack, intent.wantsAttack, intent.wantsLongAttack);
+        // B. 執行 (把所有意圖丟進去執行)
+        ExecuteAgentAction(
+            intent.moveDirection, 
+            intent.lookDirection, 
+            intent.wantsDash, 
+            intent.swordTargetLocalPos,
+            intent.swordTargetLocalRot
+        );
     }
     public struct AI_Intent
     {
@@ -219,13 +275,21 @@ public class VR_Player_Behavior : MonoBehaviour
         public Vector3 lookDirection;
         public bool wantsAttack;
         public bool wantsDash;
-        public bool wantsDashAttack;
-        public bool wantsLongAttack;
+        public Vector3 swordTargetLocalPos;
+        public Quaternion swordTargetLocalRot;
     }
 
     public AI_Intent GetLogicIntent(TrainingMode mode)
     {
         AI_Intent intent = new AI_Intent();
+        float timeStep = Time.fixedDeltaTime;
+    
+        // 如果不是使用內部邏輯 (代表現在是由 Agent 的 Heuristic 在取樣)
+        if (!IsUseInternalLogic)
+        {
+            // 我們必須把時間補償回來，否則計時器會變慢 5 倍
+            timeStep *= decisionTime;
+        }
         
         // --- 基礎資訊 ---
         Vector3 directionToTarget = Vector3.zero;
@@ -279,7 +343,16 @@ public class VR_Player_Behavior : MonoBehaviour
 
             case TrainingMode.SmartAttack:
                 var enemyAgent = enemy.GetComponent<VR_Enemy>();
-                _isSmartAtk = (enemyAgent != null && enemyAgent.GetEnemyState() == VR_Enemy.EnemyState.Recovery && CurrentState == PlayerState.Idle);
+                bool enemyInRecovery = (enemyAgent != null && enemyAgent.GetEnemyState() == VR_Enemy.EnemyState.Recovery);
+                
+                // 如果在 Idle，且敵人進入 Recovery，則觸發 SmartAttack
+                if (CurrentState == PlayerState.Idle && enemyInRecovery)
+                {
+                    _isSmartAtk = true;
+                }
+                
+                // 如果成功發起攻擊，或者敵人距離太遠但並未在發起 SmartAttack 過程中，則取消狀態 (在動作邏輯區處理)
+
                 if (_isSmartAtk)
                     intent.moveDirection = (distanceToTarget > atkRadius) ? directionToTarget : Vector3.zero;
                 else
@@ -357,149 +430,206 @@ public class VR_Player_Behavior : MonoBehaviour
         // =========================================================
         bool canAct = (CurrentState == PlayerState.Idle || CurrentState == PlayerState.Recovery);
 
-        if (!canAct) return intent;
-
-        switch (mode)
+        if (canAct)
         {
-            case TrainingMode.Manual:
-                var mouse = Mouse.current; // 取得滑鼠實例
-                var keyboard = Keyboard.current;
+            switch (mode)
+            {
+                case TrainingMode.Manual:
+                    var mouse = Mouse.current; // 取得滑鼠實例
+                    var keyboard = Keyboard.current;
 
-                if (mouse.leftButton.isPressed) intent.wantsAttack = true;
-                if (mouse.rightButton.isPressed) intent.wantsLongAttack = true; 
-                if (keyboard.leftShiftKey.isPressed) intent.wantsDash = true;
-                break;
+                    if (mouse.leftButton.isPressed) intent.wantsAttack = true;
+                    // if (mouse.rightButton.isPressed) intent.wantsLongAttack = true; 
+                    if (keyboard.leftShiftKey.isPressed) intent.wantsDash = true;
+                    break;
 
-            case TrainingMode.AutoTrace:
-            case TrainingMode.AttackAndRun:
-                if (CurrentState == PlayerState.Idle && distanceToTarget <= atkRadius) 
-                    intent.wantsAttack = true;
-                break;
+                case TrainingMode.AutoTrace:
+                case TrainingMode.AttackAndRun:
+                    if (CurrentState == PlayerState.Idle && distanceToTarget <= atkRadius) 
+                        intent.wantsAttack = true;
+                    break;
 
-            case TrainingMode.AttackAndDash:
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget <= atkRadius) intent.wantsAttack = true;
-                }
-                else if (_canDash) intent.wantsDash = true;
-                break;
-
-            case TrainingMode.SmartAttack:
-                var enemyAgent = enemy.GetComponent<VR_Enemy>();
-                if (CurrentState == PlayerState.Idle && enemyAgent != null && enemyAgent.GetEnemyState() == VR_Enemy.EnemyState.Recovery)
-                {
-                    if (distanceToTarget <= atkRadius) intent.wantsAttack = true;
+                case TrainingMode.AttackAndDash:
+                    if (CurrentState == PlayerState.Idle)
+                    {
+                        if (distanceToTarget <= atkRadius) intent.wantsAttack = true;
+                    }
                     else if (_canDash) intent.wantsDash = true;
-                }
-                else if(_isSmartAtk)
-                {
+                    break;
+
+                case TrainingMode.SmartAttack:
+                    if (CurrentState == PlayerState.Idle && _isSmartAtk)
+                    {
+                        if (distanceToTarget <= atkRadius)
+                        {
+                            intent.wantsAttack = true;
+                            _isSmartAtk = false; // 攻擊後重置狀態
+                        }
+                        else if (_canDash) 
+                        {
+                            intent.wantsDash = true;
+                        }
+                    }
+                    break;
+
+                // case TrainingMode.LongRangeAttack:
+                //     if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange) 
+                //         intent.wantsLongAttack = true;
+                //     break;
+
+                // case TrainingMode.DashAtkRanged:
+                //     if (CurrentState == PlayerState.Idle)
+                //     {
+                //         if(distanceToTarget >= longAttackRange)
+                //         {
+                //             if (Random.value > 0.5f && !_isDashAtk) intent.wantsLongAttack = true;
+                //             else _isDashAtk = true;
+                //         }
+                //         else if(distanceToTarget <= atkRadius)
+                //         {
+                //             intent.wantsAttack = true;
+                //         }
+                //     }
+                //     else if(_isDashAtk && _canDash)
+                //     {
+                //         intent.wantsDash = true;
+                //         _isDashAtk = false;
+                //     }
+                //     break;
+
+                // case TrainingMode.AtkDashRanged:
+                //     if (CurrentState == PlayerState.Idle)
+                //     {
+                //         if (distanceToTarget >= longAttackRange)
+                //         {
+                //             if (Random.value > 0.5f && !_isAtkDash) intent.wantsLongAttack = true;
+                //             else _isAtkDash = true;
+                //         }
+                //         else if (distanceToTarget <= atkRadius)
+                //         {
+                //             intent.wantsAttack = true;
+                //         }
+                //     }
+                //     else if (_isAtkDash && _canDash)
+                //     {
+                //         intent.wantsDash = true;
+                //         _isAtkDash = false;
+                //     }
+                //     break;
+
+                case TrainingMode.OnlyDash:
                     if (_canDash) intent.wantsDash = true;
-                }
-                break;
+                    break;
+            }
+        }
 
-            case TrainingMode.LongRangeAttack:
-                if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange) 
-                    intent.wantsLongAttack = true;
-                break;
+        // =========================================================
+        // Part 4: 武器位置與旋轉計算 (整合)
+        // =========================================================
+        
+        // 1. 處理攻擊計時器邏輯
+        if (intent.wantsAttack && _internalAttackTimer < 0) {
+            CurrentState = PlayerState.Attacking;
+            _internalAttackTimer = 0f;
+        }
 
-            case TrainingMode.DashAtkRanged:
-                if (CurrentState == PlayerState.Idle)
+        if (_internalAttackTimer >= 0) {
+            // --- 情況 A：正在進行物理攻擊軌跡 ---
+            _internalAttackTimer += timeStep;
+            float progress = Mathf.Clamp01(_internalAttackTimer / attackTime);
+            
+            SwordPose pose = GetAttackTrajectory(progress);
+            intent.swordTargetLocalPos = pose.position;
+            intent.swordTargetLocalRot = Quaternion.Euler(pose.rotX, 0, pose.rotZ);
+            CurrentState = PlayerState.Attacking;
+            
+            if (_internalAttackTimer >= attackTime)
+            {
+                CurrentState = PlayerState.Recovery;
+                if(_internalAttackTimer >= attackTime + attackRecoveryTime)
                 {
-                    if(distanceToTarget >= longAttackRange)
-                    {
-                        if (Random.value > 0.5f && !_isDashAtk) intent.wantsLongAttack = true;
-                        else _isDashAtk = true;
-                    }
-                    else if(distanceToTarget <= atkRadius)
-                    {
-                        intent.wantsAttack = true;
-                    }
+                    CurrentState = PlayerState.Waiting;
+                    _internalAttackTimer = -1;
                 }
-                else if(_isDashAtk && _canDash)
-                {
-                    intent.wantsDash = true;
-                    _isDashAtk = false;
-                }
-                break;
+            }
+            else
+            {
+                // 攻擊時不移動
+                intent.moveDirection = Vector3.zero;
+            }
+            
+            // 攻擊時強制 wantsAttack 為 false，防止重複觸發
+            intent.wantsAttack = false; 
 
-            case TrainingMode.AtkDashRanged:
-                if (CurrentState == PlayerState.Idle)
-                {
-                    if (distanceToTarget >= longAttackRange)
-                    {
-                        if (Random.value > 0.5f && !_isAtkDash) intent.wantsLongAttack = true;
-                        else _isAtkDash = true;
-                    }
-                    else if (distanceToTarget <= atkRadius)
-                    {
-                        intent.wantsAttack = true;
-                    }
-                }
-                else if (_isAtkDash && _canDash)
-                {
-                    intent.wantsDash = true;
-                    _isAtkDash = false;
-                }
-                break;
+        }
+        else {
+            // --- 情況 B：非攻擊狀態 ---
+            if (mode == TrainingMode.Manual) {
+                // 手動模式讀取鍵盤 (IJKL / UO / , .)
+                var kb = Keyboard.current;
+                float x = kb.lKey.isPressed ? 0.5f : (kb.jKey.isPressed ? -0.5f : 0f);
+                float y = kb.uKey.isPressed ? 0.5f : (kb.oKey.isPressed ? -0.5f : 0f);
+                float z = kb.iKey.isPressed ? 0.5f : (kb.kKey.isPressed ? -0.5f : 0f);
+                intent.swordTargetLocalPos = new Vector3(x, y, z);
 
-            case TrainingMode.OnlyDash:
-                if (_canDash) intent.wantsDash = true;
-                break;
+                float rx = kb.commaKey.isPressed ? 90f : (kb.periodKey.isPressed ? -90f : 0f);
+                float rz = kb.nKey.isPressed ? 90f : (kb.mKey.isPressed ? -90f : 0f);
+                intent.swordTargetLocalRot = Quaternion.Euler(rx, 0, rz);
+            }
+            else {
+                // 自動模式預設位置
+                intent.swordTargetLocalPos = Vector3.zero;
+                intent.swordTargetLocalRot = Quaternion.identity;
+            }
         }
 
         return intent;
     }
-    // 增加一個供 Agent 執行動作的接口
-    public void ExecuteAgentAction(Vector3 moveDir, Vector3 lookDir, bool dash, bool dashAtk, bool atk, bool longAtk)
+
+    public void ExecuteAgentAction(Vector3 moveDir, Vector3 lookDir, bool wantsDash, Vector3 swordOffsetPos, Quaternion swordTargetLocalRot)
     {
-        if(CurrentState == PlayerState.Attacking || _isDashing) 
+        if(_isDashing) 
             return;
-        // 1. 執行移動
+
+        // for logger
+        Vector3 localMove = transform.InverseTransformDirection(moveDir);
+        lastStrafeInput = Mathf.Abs(localMove.x); 
+        // 1. 執行身體移動 (原本的邏輯)
         ApplyMovement(moveDir);
 
-        // 2. 執行旋轉
+        // 2. 執行身體旋轉
         Vector3 finalLookDir = (lookDir.sqrMagnitude > 0.001f) ? lookDir : moveDir;
         ApplyRotation(finalLookDir);
 
+        // 3. 執行衝刺 (Discrete Action)
+        if (wantsDash && _canDash && !_isDashing)
+        {
+            StartCoroutine(Dash(moveDir == Vector3.zero ? transform.forward : moveDir));
+        }
+
+        _currentSwordPos = swordOriPos + swordOffsetPos;
+        _currentSwordRot = swordTargetLocalRot;
+
+        // 5. 狀態處理
         if (CurrentState == PlayerState.Waiting)
         {
             ProcessWaitingState();
-            return;
-        }
-        // 3. 執行動作
-        if (CurrentState == PlayerState.Idle || CurrentState == PlayerState.Recovery)
-        {
-            if (dash && _canDash) 
-            {
-                Vector3 finalDashDir = (moveDir == Vector3.zero) ? transform.forward : moveDir;
-                if(curMode == TrainingMode.AtkDashRanged) finalDashDir = -finalDashDir;
-                StartCoroutine(Dash(finalDashDir));
-            }
-            else if(dashAtk && _canDash)
-            {
-                Vector3 finalDashDir = (finalLookDir == Vector3.zero) ? transform.forward : finalLookDir;
-                StartCoroutine(Dash(finalDashDir, true)); 
-            }
-            else if (atk) StartCoroutine(Attack());
-            else if (longAtk) StartCoroutine(LongAttack());
         }
     }
+
     private void ProcessWaitingState()
     {
         if(waitingTime < 0.2f)
         {
             waitingTime += Time.fixedDeltaTime;
         }
-        else if (Random.value < waitingRecoveryChance)
+        if (waitingTime >= 0.2f && Random.value < waitingRecoveryChance)
         {
             CurrentState = PlayerState.Idle;
             waitingTime = 0;
         }
-        else
-        {
-            waitingTime = 0;
-        }
     }
+    
     private Vector3 GetStrafeDirection(Vector3 directionToTarget)
     {
         _clockwise = (_clockwise != 0) ? _clockwise : (Random.value < 0.5f ? 1 : -1);
@@ -552,79 +682,39 @@ public class VR_Player_Behavior : MonoBehaviour
         // 如果射線沒有擊中平面（例如，滑鼠指向天空），返回一個無效值
         return Vector3.zero; 
     }
-    private IEnumerator Attack()
+
+    public struct SwordPose {
+        public Vector3 position;
+        public float rotX;
+        public float rotZ;
+    }
+
+    // 這個函式就像 ApplyMovement，不具備狀態，只根據輸入的「時間點」給出「座標」
+    public SwordPose GetAttackTrajectory(float normalizedTime)
     {
-        float time;
-        Color targetColor;
-        CurrentState = PlayerState.Attacking;
-        int curEnemyHP = enemy.GetComponent<VR_HP_Enemy>().GetCurrentHealth();
-        mat_player.color = Color.yellow;
-        bool isHit = false;
-
-        if (!isForTraining)
-        {
-            sword_animator.SetTrigger("Attack1");
+        SwordPose pose = new SwordPose();
+        
+        // 蓄力階段 (0% ~ 40%)
+        if (normalizedTime < 0.4f) {
+            float t = normalizedTime / 0.4f;
+            pose.position = Vector3.zero;
+            pose.rotX = Mathf.Lerp(0, -45f, t);
         }
-        else
-        {
-            sword_object.GetComponent<Animator>().SetTrigger("Attack1");
+        // 揮擊階段 (40% ~ 70%)
+        else if (normalizedTime < 0.7f) {
+            float t = (normalizedTime - 0.4f) / 0.3f;
+            pose.position = Vector3.zero;
+            pose.rotX = Mathf.Lerp(-45f, 70f, t);
+        }
+        // 收招階段 (70% ~ 100%)
+        else {
+            float t = (normalizedTime - 0.7f) / 0.3f;
+            pose.position = Vector3.zero;
+            pose.rotX = Mathf.Lerp(70f, 0f, t);
         }
         
-        yield return null;
-
-        if (!isForTraining) // need fix later
-        {
-            while(!sword_animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"))
-            {
-                if (sword_animator.gameObject.GetComponent<VR_Sword>().IsAttacking())
-                {
-                    if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
-                    {
-                        enemy.GetComponent<VR_HP_Enemy>().HurtFromMelee(damage);
-                        isHit = true;
-                    }
-                }
-                
-                yield return null;
-            }
-        }
-        else
-        {
-            // 0.2 秒的休息時間也在這個 while 迴圈裡面 (0.5蓄力 -> 0.3攻擊 -> 0.2休息)
-            while(!sword_object.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("Idle"))
-            {
-                if (sword_object.GetComponent<VR_Sword>().IsAttacking())
-                {
-                    if (enemy.GetComponent<VR_Enemy>().GetIsEnemyGotHit() && !isHit)
-                    {
-                        enemy.GetComponent<VR_HP_Enemy>().HurtFromMelee(damage);
-                        isHit = true;
-                    }
-                }
-                
-                yield return null;
-            }
-        }
-        
-
-        if(curEnemyHP == enemy.GetComponent<VR_HP_Enemy>().GetCurrentHealth())
-        {
-            enemy?.GetComponent<VR_Enemy>()?.OnPlayerAttackMissed();
-        }
-        
-        CurrentState = PlayerState.Recovery;
-        _actionProgress = 0f;
-        time = 0f;
-        targetColor = Color.white;
-        while (time < attackRecoveryTime)
-        {
-            time += Time.fixedDeltaTime;
-            float t = time / attackRecoveryTime;
-            _actionProgress = t;
-            mat_player.color = Color.Lerp(Color.yellow, targetColor, t);
-            yield return new WaitForFixedUpdate();
-        }
-        CurrentState = PlayerState.Waiting;
+        pose.rotZ = 0; // 暫時固定 Z 軸，或依需求增加
+        return pose;
     }
 
     private IEnumerator LongAttack()
@@ -808,7 +898,7 @@ public class VR_Player_Behavior : MonoBehaviour
 
         yield return new WaitForSeconds(dashDuration);
         _isDashing = false;
-        if (isDirectAttack) StartCoroutine(Attack());
+        // if (isDirectAttack) StartCoroutine(Attack());
         rb.velocity = Vector3.zero;
         yield return new WaitForSeconds(dashCooldown);
         _canDash = true;
@@ -861,6 +951,39 @@ public class VR_Player_Behavior : MonoBehaviour
         if (!isManual)
         {
             handPoseDriver.enabled = false;
+        }
+    }
+    private int GetDecisionPeriod()
+    {
+        var requester = GetComponent<Unity.MLAgents.DecisionRequester>();
+        return (requester != null) ? requester.DecisionPeriod : 1;
+    }
+
+    // 簡化版的紀錄邏輯
+    // 在 VR_Player (繼承類) 的 FixedUpdate 或 VR_Player_Behavior 中呼叫
+    protected void PerformDataLogging()
+    {
+        if (!isLogging || enemy == null || activateSword == null) return;
+
+        // 1. 取得狀態：距離
+        float dist = Vector3.Distance(transform.position, enemy.transform.position);
+
+        // 2. 取得動作：側移強度 (已在 ExecuteAgentAction 存入 lastStrafeInput)
+        float strafe = lastStrafeInput;
+
+        // 3. 取得動作：角速度 (弧度)
+        VR_Sword sword = sword_object.GetComponent<VR_Sword>();
+        float angVel = sword != null ? sword.GetAngularSpeedRad() : 0f;
+
+        // 4. 寫入 CSV (Label, Dist, Strafe, AngVel)
+        string label = IsUseInternalLogic ? "Human" : "AI";
+        _logCache.AppendLine($"{label},{dist:F3},{strafe:F3},{angVel:F3}");
+
+        // 當快取超過一定長度再寫入，或在 Episode 結束時寫入
+        if (_logCache.Length > 1024)
+        {
+            System.IO.File.AppendAllText(csvPath, _logCache.ToString());
+            _logCache.Clear();
         }
     }
 }

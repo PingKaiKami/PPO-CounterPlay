@@ -68,7 +68,6 @@ GameObject:
   - component: {fileID: 2669463189508394384}
   - component: {fileID: 3926118462747142277}
   - component: {fileID: 4999021114898931590}
-  - component: {fileID: 463054849158232294}
   - component: {fileID: 6198461676652850980}
   m_Layer: 9
   m_Name: Sword
@@ -300,27 +299,6 @@ MonoBehaviour:
   m_LimitAngularVelocity: 0
   m_MaxLinearVelocityDelta: 10
   m_MaxAngularVelocityDelta: 20
---- !u!95 &463054849158232294
-Animator:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2028571831483050578}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 96e622eb6ae341247a31221b897b5eb4, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!114 &6198461676652850980
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -334,6 +312,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   swordTip: {fileID: 2602144801398850370}
+  minAngularSpeedRad: 3
+  player: {fileID: 0}
+  isDebug: 0
 --- !u!1 &4039516092568928148
 GameObject:
   m_ObjectHideFlags: 0

@@ -10,5 +10,7 @@ public class VR_Player : VR_Player_Behavior
     void FixedUpdate()
     {
         base.UpdateBehavior();
+        // 紀錄數據
+        base.PerformDataLogging();
     }
 }
