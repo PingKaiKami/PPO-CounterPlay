@@ -32344,7 +32344,7 @@ PrefabInstance:
     - target: {fileID: 2866473035481384355, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
       propertyPath: printDebugObs
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2866473035481384355, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
@@ -32370,7 +32370,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 5022602860645237092, guid: 92a123d20609efd43885a5ab83a3f4c2,
+      objectReference: {fileID: 5022602860645237092, guid: 58f2a1395dda45940b6ce11984b6e94d,
         type: 3}
     - target: {fileID: 5023382273641008949, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}

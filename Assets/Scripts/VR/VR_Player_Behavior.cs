@@ -109,6 +109,7 @@ public class VR_Player_Behavior : MonoBehaviour
     private StringBuilder _logCache = new StringBuilder();
     public bool IsAiming() => _isAiming;
     public float GetActionProgress() => _actionProgress;
+    public bool CanDash() => _canDash;
     public bool IsEnemyInAttackRange(GameObject e) => attackRange != null && attackRange.IsSpecificEnemyInRange(e);
 
     protected void Initialize()
@@ -163,12 +164,9 @@ public class VR_Player_Behavior : MonoBehaviour
         if(curMode == TrainingMode.Manual)
         {
             isManual = true;
-            sword_object.GetComponent<Animator>().enabled = false;
             FP_Camera.SetActive(true);
             TP_Camera_main.SetActive(false);
             TP_Camera_freelook.SetActive(false);
-            // 手動操作只能透過移動武器位置
-            activateSword.GetComponent<Animator>().enabled = false;
         }
         else
         {
@@ -253,6 +251,7 @@ public class VR_Player_Behavior : MonoBehaviour
                 Time.fixedDeltaTime * 15f
             );
         }
+        
         // 這裡的邏輯門保持不變
         if (!IsUseInternalLogic || curMode == TrainingMode.GAIL) return;
         if (_isDashing) return;
@@ -704,13 +703,13 @@ public class VR_Player_Behavior : MonoBehaviour
         else if (normalizedTime < 0.7f) {
             float t = (normalizedTime - 0.4f) / 0.3f;
             pose.position = Vector3.zero;
-            pose.rotX = Mathf.Lerp(-45f, 70f, t);
+            pose.rotX = Mathf.Lerp(-45f, 120f, t);
         }
         // 收招階段 (70% ~ 100%)
         else {
             float t = (normalizedTime - 0.7f) / 0.3f;
             pose.position = Vector3.zero;
-            pose.rotX = Mathf.Lerp(70f, 0f, t);
+            pose.rotX = Mathf.Lerp(120f, 0f, t);
         }
         
         pose.rotZ = 0; // 暫時固定 Z 軸，或依需求增加

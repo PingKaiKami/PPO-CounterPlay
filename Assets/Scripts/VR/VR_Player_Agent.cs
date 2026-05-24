@@ -99,29 +99,47 @@ public class VR_Player_Agent : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         if(player.activateSword == null || sword == null) return;
-        // --- 1. 敵方資訊 (共 9 維) ---
-        Vector3 toTarget = (player.target.position - transform.position).normalized;
-        float dist = Vector3.Distance(transform.position, player.target.position);
-        int enemyState = (int)player.enemy.GetComponent<VR_Enemy>().GetEnemyState();
-        float enemyProg = player.enemy.GetComponent<VR_Enemy>().GetActionProgress();
-        // 取得敵人的相對速度 (相對於玩家的朝向)
-        Vector3 enemyRelVel = transform.InverseTransformDirection(player.enemy.GetComponent<Rigidbody>().velocity);
+        // --- 1. 敵方資訊 ---
+        VR_Enemy enemyAgent = player.enemy != null ? player.enemy.GetComponent<VR_Enemy>() : null;
+        Rigidbody enemyRb = player.enemy != null ? player.enemy.GetComponent<Rigidbody>() : null;
 
-        sensor.AddObservation(toTarget);    // 3
+        Vector3 localTargetPos = transform.InverseTransformPoint(player.target.position);
+        float dist = Vector3.Distance(transform.position, player.target.position);
+        int enemyState = enemyAgent != null ? (int)enemyAgent.GetEnemyState() : 0;
+        float enemyProg = enemyAgent != null ? enemyAgent.GetActionProgress() : 0f;
+        // 取得敵人的相對速度 (相對於玩家的朝向)
+        Vector3 enemyRelVel = enemyRb != null
+            ? transform.InverseTransformDirection(enemyRb.velocity)
+            : Vector3.zero;
+
+        // enemyState one-hot (Idle, StartUp, Recovery)
+        sensor.AddObservation(enemyState == 0 ? 1f : 0f);
+        sensor.AddObservation(enemyState == 1 ? 1f : 0f);
+        sensor.AddObservation(enemyState == 2 ? 1f : 0f);
+        sensor.AddObservation(enemyState == 3 ? 1f : 0f);
+
+        sensor.AddObservation(localTargetPos);    // 3
         sensor.AddObservation(dist);        // 1
-        sensor.AddObservation(enemyState);  // 1
         sensor.AddObservation(enemyProg);   // 1
         sensor.AddObservation(enemyRelVel); // 3
 
-        // --- 2. 玩家自身資訊 (共 6 維) ---
+        // --- 2. 玩家自身資訊 ---
         // 自己的速度向量 (相對座標)，這能讓 AI 理解 Dash 的物理慣性
         Vector3 myRelVel = transform.InverseTransformDirection(rb.velocity);
-        Vector3 myForward = transform.forward;
+        float canDash = player.CanDash() ? 1f : 0f;
+        float playerHpNorm = (playerHP != null && playerHP.maxHP > 0)
+            ? (float)playerHP.GetCurrentHealth() / playerHP.maxHP
+            : 0f;
+        float enemyHpNorm = (enemyHP != null && enemyHP.maxHP > 0)
+            ? (float)enemyHP.GetCurrentHealth() / enemyHP.maxHP
+            : 0f;
 
         sensor.AddObservation(myRelVel);    // 3
-        sensor.AddObservation(myForward);   // 3
+        sensor.AddObservation(canDash);     // 1
+        sensor.AddObservation(playerHpNorm);// 1
+        sensor.AddObservation(enemyHpNorm); // 1
 
-        // --- 3. 武器物理與手部 (共 12 維) ---
+        // --- 3. 武器物理與手部 ---
         Vector3 relativeSwordTip = transform.InverseTransformPoint(sword.swordTip.position);
         Vector3 swordLPos = player.activateSword.transform.localPosition;
         Vector3 swordFwd = player.activateSword.transform.forward;
@@ -132,13 +150,13 @@ public class VR_Player_Agent : Agent
         sensor.AddObservation(swordFwd);         // 3
         sensor.AddObservation(swordUp);          // 3
 
-        // ====== 總計 9 + 6 + 12 = 27 維 ======
+        // ====== 總計 11 + 6 + 12 = 29 維 ======
 
         // --- Debug Print 部分 ---
         if (printDebugObs)
         {
             string enemyLog = $"<color=#FF4444>[ENEMY]</color> Dist:{dist:F2}, State:{enemyState}, RelVel:{enemyRelVel:F2}";
-            string selfLog = $"<color=#44FF44>[SELF]</color> RelVel:{myRelVel:F2}, Fwd:{myForward:F2}";
+            string selfLog = $"<color=#44FF44>[SELF]</color> RelVel:{myRelVel:F2}, CanDash:{canDash:F0}, HP:{playerHpNorm:F2}/{enemyHpNorm:F2}";
             string swordLog = $"<color=#4444FF>[SWORD]</color> TipRel:{relativeSwordTip:F2}, SwordUp:{swordUp:F2}, SwordFwd:{swordFwd:F2}";
 
             Debug.Log($"{enemyLog} | {selfLog} | {swordLog}");
