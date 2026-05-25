@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class VR_SwordDemo : MonoBehaviour
 {
@@ -8,7 +9,7 @@ public class VR_SwordDemo : MonoBehaviour
     public int subDivisions = 4; // 劍身要細分幾個偵測點
 
     [Header("Settings")]
-    public VR_Player player;
+    public VR_Player_BehaviorDemo player;
     public LayerMask enemyLayer;
     public float CurrentSpeed { get; private set; }
     public float minVelocity = 2.0f; // 改用「線速度 (m/s)」比角速度更符合直覺
@@ -27,6 +28,19 @@ public class VR_SwordDemo : MonoBehaviour
     {
         // 初始化紀錄點的位置
         lastPoints = GetBladePoints();
+        if (player.IsTesting)
+        {
+            GetComponent<Collider>().enabled = false;
+            XRGrabInteractable grab = GetComponent<XRGrabInteractable>();
+            grab.movementType = XRBaseInteractable.MovementType.VelocityTracking;
+
+        }
+        else
+        {
+            GetComponent<Collider>().enabled = true;
+            XRGrabInteractable grab = GetComponent<XRGrabInteractable>();
+            grab.movementType = XRBaseInteractable.MovementType.Kinematic;
+        }
     }
 
     void FixedUpdate()

@@ -16,16 +16,13 @@ public class VR_Player_Agent : Agent
 
     private HP playerHP;
     private HP enemyHP;
-    private VR_TrainingArea myArea;
     private Rigidbody rb;
     private VR_Sword sword;
-    private float episodeTimer;
 
     void Start()
     {
         player = GetComponent<VR_Player_Behavior>();
         playerHP = GetComponent<HP>();
-        myArea = GetComponentInParent<VR_TrainingArea>();
         rb = GetComponent<Rigidbody>();
         sword = player.activateSword.GetComponent<VR_Sword>();
 
@@ -37,63 +34,12 @@ public class VR_Player_Agent : Agent
 
     public override void OnEpisodeBegin()
     {
-        episodeTimer = 0f;
-
         player.ResetStateToIdle();
 
         currentDemoMode = player.curMode;
 
         if (playerHP != null) playerHP.ResetHealth();
         if (enemyHP != null) enemyHP.ResetHealth();
-    }
-
-    void FixedUpdate()
-    {
-        // 1. 累加計時器
-        episodeTimer += Time.fixedDeltaTime;
-
-        // 2. 死亡判定 (一定要用 GetComponentInChildren 確保抓到血量腳本)
-        if (playerHP != null && playerHP.IsDead())
-        {
-            HandleEnd("Enemy"); // 玩家死，敵人贏
-            return;
-        }
-
-        if (enemyHP != null && enemyHP.IsDead())
-        {
-            HandleEnd("Player"); // 敵人死，玩家贏
-            return;
-        }
-
-        // 3. 超時判定
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            HandleEnd("Draw");
-            return;
-        }
-
-        // 4. 掉落判定 (改用世界座標 y，防止局部座標誤差)
-        if (transform.localPosition.y < -2f) 
-        {
-            HandleEnd("Fall");
-            return;
-        }
-    }
-
-    private void HandleEnd(string result)
-    {
-        // 紀錄 Benchmark (如果是測試模式)
-        if (isVerify && BenchmarkManager.Instance != null)
-        {
-            BenchmarkManager.Instance.RecordEpisode(modelName, result, 0);
-        }
-
-        // 通知環境清理箭矢
-        if (myArea != null) myArea.TriggerEpisodeEnd();
-
-        // 重置計時器並結束
-        episodeTimer = 0f;
-        EndEpisode();
     }
 
     public override void CollectObservations(VectorSensor sensor)

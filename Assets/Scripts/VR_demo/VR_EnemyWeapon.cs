@@ -67,5 +67,14 @@ public class VR_EnemyWeapon : MonoBehaviour
                 Debug.Log($"<color=red>【敵方攻擊命中】</color> 玩家受到 {currentDamage} 點傷害！");
             }
         }
+        else if (other.CompareTag("Sword") || other.gameObject.layer == LayerMask.NameToLayer("Weapon"))
+        {
+            // 找到大本體的 VR_EnemyDemo 腳本並通知牠被擋下了！
+            VR_EnemyDemo enemy = GetComponentInParent<VR_EnemyDemo>();
+            if (enemy != null)
+            {
+                enemy.TriggerWeaponClashGuard();
+            }
+        }
     }
 }

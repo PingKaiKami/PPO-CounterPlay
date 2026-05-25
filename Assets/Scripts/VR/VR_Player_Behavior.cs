@@ -539,7 +539,7 @@ public class VR_Player_Behavior : MonoBehaviour
             
             SwordPose pose = GetAttackTrajectory(progress);
             intent.swordTargetLocalPos = pose.position;
-            intent.swordTargetLocalRot = Quaternion.Euler(pose.rotX, 0, pose.rotZ);
+            intent.swordTargetLocalRot = Quaternion.AngleAxis(pose.rotX, Vector3.right);
             CurrentState = PlayerState.Attacking;
             
             if (_internalAttackTimer >= attackTime)
@@ -703,13 +703,13 @@ public class VR_Player_Behavior : MonoBehaviour
         else if (normalizedTime < 0.7f) {
             float t = (normalizedTime - 0.4f) / 0.3f;
             pose.position = Vector3.zero;
-            pose.rotX = Mathf.Lerp(-45f, 120f, t);
+            pose.rotX = Mathf.Lerp(-45f, 90f, t);
         }
         // 收招階段 (70% ~ 100%)
         else {
             float t = (normalizedTime - 0.7f) / 0.3f;
             pose.position = Vector3.zero;
-            pose.rotX = Mathf.Lerp(120f, 0f, t);
+            pose.rotX = Mathf.Lerp(90f, 0f, t);
         }
         
         pose.rotZ = 0; // 暫時固定 Z 軸，或依需求增加

@@ -68,13 +68,8 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
 
     [Header("Debug")]
     public PlayerState CurrentState = PlayerState.Idle;
-    public bool IsUseInternalLogic = false;
+    public bool IsTesting = false;
     public bool printState = false;
-
-    [Header("Data Recording")]
-    public bool isLogging = false; // 開關：是否開始錄製數據
-    private string csvPath;
-    private float lastStrafeInput = 0f; // 紀錄最後一次的側移量
 
     protected Rigidbody rb;
     protected AttackRange attackRange;
@@ -106,13 +101,12 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
     public GameObject activateSword { get; private set; }
     private Vector3 swordOriPos;
     public PlayerState GetCurrentState() => CurrentState;
-    private StringBuilder _logCache = new StringBuilder();
     public bool IsAiming() => _isAiming;
     public float GetActionProgress() => _actionProgress;
     public bool CanDash() => _canDash;
     public bool IsEnemyInAttackRange(GameObject e) => attackRange != null && attackRange.IsSpecificEnemyInRange(e);
 
-    protected void Initialize()
+    void Start()
     {
         aimLine = GetComponent<LineRenderer>();
         if (aimLine != null)
@@ -180,22 +174,16 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
         decisionTime = GetDecisionPeriod();
         _currentSwordPos = Vector3.zero;
         _currentSwordRot = Quaternion.identity;
-        if (isLogging)
-        {
-            // 初始化 CSV 存檔路徑 (存放在專案根目錄的 DataLogs 資料夾)
-            string folderPath = Application.dataPath + "/DataLogs";
-            if (!System.IO.Directory.Exists(folderPath)) System.IO.Directory.CreateDirectory(folderPath);
-            
-            // 根據目前的模式給予檔名，例如：Manual_Data.csv 或 GAIL_Data.csv
-            string modeLabel = IsUseInternalLogic ? "Human" : "AI";
-            csvPath = folderPath + $"/{modeLabel}_BattleData.csv";
 
-            // 如果檔案不存在，寫入表頭
-            if (!System.IO.File.Exists(csvPath))
-            {
-                System.IO.File.WriteAllText(csvPath, "Label,Distance,StrafingIntensity,AngularVelocity\n");
-            }
+        // 自動撿取武器
+        if (IsTesting)
+        {
+            StartCoroutine(AutoEquipWeapon(rightController, sword_object.GetComponent<XRGrabInteractable>(), isManual));    
         }
+    }
+    void FixedUpdate()
+    {
+        UpdateBehavior();
     }
     public void ResetStateToIdle()
     {
@@ -234,8 +222,7 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
             myArea.OnEpisodeEnd -= ResetStateToIdle;
         }
     }
-    // main
-    protected void UpdateBehavior()
+    private void UpdateBehavior()
     {
         if (activateSword != null) {
             activateSword.transform.localPosition = Vector3.SmoothDamp(
@@ -253,7 +240,7 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
         }
         
         // 這裡的邏輯門保持不變
-        if (!IsUseInternalLogic || curMode == TrainingMode.GAIL) return;
+        if (curMode == TrainingMode.GAIL) return;
         if (_isDashing) return;
 
         // A. 思考 (大腦會算出移動方向 + 武器該放在哪)
@@ -282,13 +269,6 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
     {
         AI_Intent intent = new AI_Intent();
         float timeStep = Time.fixedDeltaTime;
-    
-        // 如果不是使用內部邏輯 (代表現在是由 Agent 的 Heuristic 在取樣)
-        if (!IsUseInternalLogic)
-        {
-            // 我們必須把時間補償回來，否則計時器會變慢 5 倍
-            timeStep *= decisionTime;
-        }
         
         // --- 基礎資訊 ---
         Vector3 directionToTarget = Vector3.zero;
@@ -471,51 +451,6 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
                     }
                     break;
 
-                // case TrainingMode.LongRangeAttack:
-                //     if (CurrentState == PlayerState.Idle && distanceToTarget >= longAttackRange) 
-                //         intent.wantsLongAttack = true;
-                //     break;
-
-                // case TrainingMode.DashAtkRanged:
-                //     if (CurrentState == PlayerState.Idle)
-                //     {
-                //         if(distanceToTarget >= longAttackRange)
-                //         {
-                //             if (Random.value > 0.5f && !_isDashAtk) intent.wantsLongAttack = true;
-                //             else _isDashAtk = true;
-                //         }
-                //         else if(distanceToTarget <= atkRadius)
-                //         {
-                //             intent.wantsAttack = true;
-                //         }
-                //     }
-                //     else if(_isDashAtk && _canDash)
-                //     {
-                //         intent.wantsDash = true;
-                //         _isDashAtk = false;
-                //     }
-                //     break;
-
-                // case TrainingMode.AtkDashRanged:
-                //     if (CurrentState == PlayerState.Idle)
-                //     {
-                //         if (distanceToTarget >= longAttackRange)
-                //         {
-                //             if (Random.value > 0.5f && !_isAtkDash) intent.wantsLongAttack = true;
-                //             else _isAtkDash = true;
-                //         }
-                //         else if (distanceToTarget <= atkRadius)
-                //         {
-                //             intent.wantsAttack = true;
-                //         }
-                //     }
-                //     else if (_isAtkDash && _canDash)
-                //     {
-                //         intent.wantsDash = true;
-                //         _isAtkDash = false;
-                //     }
-                //     break;
-
                 case TrainingMode.OnlyDash:
                     if (_canDash) intent.wantsDash = true;
                     break;
@@ -590,9 +525,6 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
         if(_isDashing) 
             return;
 
-        // for logger
-        Vector3 localMove = transform.InverseTransformDirection(moveDir);
-        lastStrafeInput = Mathf.Abs(localMove.x); 
         // 1. 執行身體移動 (原本的邏輯)
         ApplyMovement(moveDir);
 
@@ -956,33 +888,5 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
     {
         var requester = GetComponent<Unity.MLAgents.DecisionRequester>();
         return (requester != null) ? requester.DecisionPeriod : 1;
-    }
-
-    // 簡化版的紀錄邏輯
-    // 在 VR_Player (繼承類) 的 FixedUpdate 或 VR_Player_Behavior 中呼叫
-    protected void PerformDataLogging()
-    {
-        if (!isLogging || enemy == null || activateSword == null) return;
-
-        // 1. 取得狀態：距離
-        float dist = Vector3.Distance(transform.position, enemy.transform.position);
-
-        // 2. 取得動作：側移強度 (已在 ExecuteAgentAction 存入 lastStrafeInput)
-        float strafe = lastStrafeInput;
-
-        // 3. 取得動作：角速度 (弧度)
-        VR_Sword sword = sword_object.GetComponent<VR_Sword>();
-        float angVel = sword != null ? sword.GetAngularSpeedRad() : 0f;
-
-        // 4. 寫入 CSV (Label, Dist, Strafe, AngVel)
-        string label = IsUseInternalLogic ? "Human" : "AI";
-        _logCache.AppendLine($"{label},{dist:F3},{strafe:F3},{angVel:F3}");
-
-        // 當快取超過一定長度再寫入，或在 Episode 結束時寫入
-        if (_logCache.Length > 1024)
-        {
-            System.IO.File.AppendAllText(csvPath, _logCache.ToString());
-            _logCache.Clear();
-        }
     }
 }
