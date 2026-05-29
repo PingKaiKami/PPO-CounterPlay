@@ -150,7 +150,7 @@ GameObject:
   - component: {fileID: 7203454372225143380}
   - component: {fileID: 5663575408320984317}
   - component: {fileID: 7983429031043009944}
-  m_Layer: 9
+  m_Layer: 0
   m_Name: Sword
   m_TagString: Sword
   m_Icon: {fileID: 0}
@@ -756,7 +756,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 26
+    VectorObservationSize: 24
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 2
@@ -765,7 +765,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 0f3d7c5ed8c004d4c8baa358310ff062, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: bbcd15657525181408c947d55f10141c, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 2
   m_BehaviorName: EnemyAI
@@ -1645,6 +1645,7 @@ MonoBehaviour:
   CurrentState: 0
   IsUseInternalLogic: 1
   printState: 0
+  isLogging: 0
 --- !u!114 &54236670391876835
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2089,7 +2090,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyInArea: {fileID: 8656349280661446446}
-  playerInArea: {fileID: 1082923543890421881}
+  playerAgent: {fileID: 7460859304300761844}
+  maxEpisodeTime: 60
+  AutoStop: 0
+  maxEpisodes: 10
 --- !u!1 &6538494689288686129
 GameObject:
   m_ObjectHideFlags: 0

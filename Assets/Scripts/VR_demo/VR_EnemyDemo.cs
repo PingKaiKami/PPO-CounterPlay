@@ -58,6 +58,7 @@ public class VR_EnemyDemo : MonoBehaviour
     private VR_HP_Enemy enemy_HP;
     private Rigidbody rb;
     private Vector3 moveDirection;
+    private Vector3 lookDirection;
     private Vector3 initialPosition;
     private Quaternion initialRotation;
     
@@ -127,12 +128,17 @@ public class VR_EnemyDemo : MonoBehaviour
         // 2. 處理敵人移動與轉向（StartUp、Defending、Dead 狀態下無法移動）
         if (curState != EnemyState.StartUp && curState != EnemyState.Defending && curState != EnemyState.Dead)
         {
+            // 【物理移動】不論朝哪，依然根據 moveDirection 移動
             if (moveDirection != Vector3.zero)
             {
                 Vector3 targetPos = rb.position + moveDirection.normalized * moveSpeed * Time.fixedDeltaTime;
                 rb.MovePosition(targetPos);
+            }
 
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized);
+            // 【物理旋轉】改用 lookDirection 來決定面朝方向！
+            if (lookDirection != Vector3.zero)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(lookDirection.normalized);
                 Quaternion smoothedRotation = Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
                 rb.MoveRotation(smoothedRotation);
             }
@@ -220,6 +226,7 @@ public class VR_EnemyDemo : MonoBehaviour
         if (keyboard.downArrowKey.isPressed) z = -1f;
 
         moveDirection = new Vector3(x, 0f, z);
+        lookDirection = moveDirection;
 
         if (curState == EnemyState.Idle && comboPatterns != null && comboPatterns.Length > 0)
         {
@@ -237,6 +244,8 @@ public class VR_EnemyDemo : MonoBehaviour
         Vector3 playerPlanePos = new Vector3(playerTransform.position.x, transform.position.y, playerTransform.position.z);
         float distance = Vector3.Distance(transform.position, playerPlanePos);
         Vector3 directionToPlayer = (playerPlanePos - transform.position).normalized;
+
+        lookDirection = directionToPlayer;
 
         if (curState == EnemyState.Idle)
         {
@@ -257,35 +266,70 @@ public class VR_EnemyDemo : MonoBehaviour
             }
         }
     }
-
     private void ExecuteCounterAttackLogic()
     {
         if (playerTransform == null) return;
 
+        // 1. 計算與玩家的平面距離與方向
         Vector3 playerPlanePos = new Vector3(playerTransform.position.x, transform.position.y, playerTransform.position.z);
         float distance = Vector3.Distance(transform.position, playerPlanePos);
         Vector3 directionToPlayer = (playerPlanePos - transform.position).normalized;
 
+        // 不論前進或後退，眼睛都死死盯著玩家
+        lookDirection = directionToPlayer;
+
         if (curState == EnemyState.Idle)
         {
-            if (distance < attackRange * 0.8f)
+            // 2. 核心邏輯分支：檢查攻擊是否還在冷卻中
+            bool isCooldown = Time.time < nextAiAttackTime;
+
+            if (isCooldown)
             {
-                moveDirection = -directionToPlayer;
-            }
-            else if (distance > attackRange * 1.5f)
-            {
-                moveDirection = directionToPlayer;
+                // 【情境 A：還在冷卻中】➔ 目標是與玩家保持 2 * attackRange 的安全間距
+                float safeDistance = attackRange * 2f;
+
+                if (distance < safeDistance * 0.9f)
+                {
+                    // 離玩家太近了（小於安全距離的 90%），必須「往後退」
+                    moveDirection = -directionToPlayer;
+                    
+                    // 觸發倒退動畫
+                    if (animator != null) animator.SetBool("GoBack", true);
+                }
+                else if (distance > safeDistance * 1.1f)
+                {
+                    moveDirection = Vector3.zero;
+                    if (animator != null) animator.SetBool("GoBack", true);
+                }
             }
             else
             {
-                moveDirection = Vector3.zero;
+                // 【情境 B：冷卻好了！】➔ 瘋狂追擊玩家，直到踏入 attackRange
+                if (animator != null) animator.SetBool("GoBack", false); // 衝鋒時不播倒退動畫
 
-                if (Time.time >= nextAiAttackTime)
+                if (distance > attackRange)
                 {
-                    CheckAndStartAttack(0);
-                    nextAiAttackTime = Time.time + aiAttackCooldown * 1.5f;
+                    // 還沒進入攻擊範圍，全速「主動追擊」
+                    moveDirection = directionToPlayer;
+                }
+                else
+                {
+                    // 成功突進到 attackRange 內！停下腳步立刻出招
+                    moveDirection = Vector3.zero;
+
+                    // 發動反擊 combo，並設定下一次的冷卻時間
+                    int randomAttack = Random.Range(0, comboPatterns.Length);
+                    CheckAndStartAttack(randomAttack);
+                    
+                    // 進入冷卻
+                    nextAiAttackTime = Time.time + aiAttackCooldown;
                 }
             }
+        }
+        else
+        {
+            // 非 Idle 狀態（例如正在揮刀或格擋僵直），關閉倒退動畫
+            if (animator != null) animator.SetBool("GoBack", false);
         }
     }
 
@@ -298,6 +342,7 @@ public class VR_EnemyDemo : MonoBehaviour
         Vector3 directionToPlayer = (playerPlanePos - transform.position).normalized;
 
         moveDirection = Vector3.zero;
+        lookDirection = directionToPlayer;
 
         if (curState == EnemyState.Idle)
         {
@@ -346,7 +391,7 @@ public class VR_EnemyDemo : MonoBehaviour
         else if (combo.comboName == "slash02")
         {
             animator.SetTrigger("Attack3");
-            targetStateName = "root|slash 02";
+            targetStateName = "root|slash02";
         }
 
         if (enemyWeapon != null && combo.attackSteps != null)

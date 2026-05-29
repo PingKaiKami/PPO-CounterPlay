@@ -13,6 +13,11 @@ public class VR_TrainingArea : MonoBehaviour
     public float maxEpisodeTime = 60f;
     private float episodeTimer;
 
+    [Header("Auto Stop Settings")]
+    public bool AutoStop = true;       // 是否開啟自動停止
+    public int maxEpisodes = 1000;     // 目標 Episode 數量
+    private int currentEpisodeCount = 0; // 當前 Episode 計數器
+
     private VR_HP_Player playerHP;
     private VR_HP_Enemy enemyHP;
 
@@ -69,6 +74,24 @@ public class VR_TrainingArea : MonoBehaviour
 
         // 5. 重置計時器
         episodeTimer = 0f;
+
+        // 6. 處理自動停止邏輯
+        currentEpisodeCount++;
+        if (AutoStop)
+        {
+            Debug.Log($"[訓練進度] Episode: {currentEpisodeCount} / {maxEpisodes} | 結果: {winner}");
+            if(currentEpisodeCount >= maxEpisodes)
+            {
+                Debug.Log("達到設定的最大 Episode 數量，自動停止訓練！");
+                
+                // 根據是否在 Unity 編輯器環境中，執行不同的停止指令
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false; // 停止 Unity 編輯器播放
+#else
+                Application.Quit(); // 如果是打包出來的執行檔 (Build)，則關閉程式
+#endif
+            }
+        }
     }
 
     public void TriggerEpisodeEnd() => OnEpisodeEnd?.Invoke();

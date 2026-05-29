@@ -683,6 +683,8 @@ MonoBehaviour:
   enemyInArea: {fileID: 5282798761590561923}
   playerAgent: {fileID: 2866473035481384355}
   maxEpisodeTime: 60
+  AutoStop: 0
+  maxEpisodes: 10
 --- !u!1 &4728655948990384915
 GameObject:
   m_ObjectHideFlags: 0
@@ -1301,9 +1303,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0e0530a51f47ff244bc2fdbc89ba5ae0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: PlayerAI
   TeamId: 0
   m_UseChildSensors: 1
@@ -1755,7 +1757,7 @@ MonoBehaviour:
     hasUpgradedBrainParametersWithActionSpec: 1
   m_Model: {fileID: 5022602860645237092, guid: bbcd15657525181408c947d55f10141c, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 2
+  m_BehaviorType: 0
   m_BehaviorName: EnemyAI
   TeamId: 0
   m_UseChildSensors: 1
@@ -1829,6 +1831,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Sword
+      objectReference: {fileID: 0}
+    - target: {fileID: 2028571831483050578, guid: b91cfe449e2623348b257b691c023703,
+        type: 3}
+      propertyPath: m_Layer
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6198461676652850980, guid: b91cfe449e2623348b257b691c023703,
         type: 3}

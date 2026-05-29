@@ -590,9 +590,11 @@ public class VR_Player_Behavior : MonoBehaviour
         if(_isDashing) 
             return;
 
+        
+        Vector3 clampedMove = Vector3.ClampMagnitude(moveDir, 1.0f);
+        Vector3 localMove = transform.InverseTransformDirection(clampedMove);
         // for logger
-        Vector3 localMove = transform.InverseTransformDirection(moveDir);
-        lastStrafeInput = Mathf.Abs(localMove.x); 
+        lastStrafeInput = Mathf.Abs(localMove.x);
         // 1. 執行身體移動 (原本的邏輯)
         ApplyMovement(moveDir);
 
@@ -642,14 +644,10 @@ public class VR_Player_Behavior : MonoBehaviour
             rb.velocity = Vector3.zero;
             return;
         }
-        if (_isAiming)
-        {
-            rb.velocity = direction.normalized * aimingMoveSpeed + new Vector3(0, rb.velocity.y, 0);
-        }
-        else
-        {
-            rb.velocity = direction.normalized * moveSpeed + new Vector3(0, rb.velocity.y, 0);    
-        }
+        Vector3 controlledMove = Vector3.ClampMagnitude(direction, 1.0f);
+        float currentSpeed = _isAiming ? aimingMoveSpeed : moveSpeed;
+
+        rb.velocity = controlledMove * currentSpeed + new Vector3(0, rb.velocity.y, 0);
     }
 
     private void ApplyRotation(Vector3 direction)

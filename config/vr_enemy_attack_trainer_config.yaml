@@ -1,5 +1,5 @@
 behaviors:
-  EnemyAI: # 這個名字必須和你在 Behavior Parameters 中設定的 Behavior Name 一樣
+  EnemyAI:
     trainer_type: ppo # 使用 PPO 演算法，這是最常用的
     hyperparameters:
       batch_size: 4096
