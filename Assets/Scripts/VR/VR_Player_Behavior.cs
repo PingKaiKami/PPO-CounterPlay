@@ -14,7 +14,7 @@ using System.Text;
 public class VR_Player_Behavior : MonoBehaviour
 {
     public enum PlayerState { Idle, Attacking, Aiming, Recovery, Defending, Waiting, Dashing }
-    public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, GAIL, Manual }
+    public enum TrainingMode { AutoTrace, OnlyDash, AttackAndRun, AttackAndDash, SmartAttack, LongRangeAttack, DashAtkRanged, AtkDashRanged, Escape, Random, GAIL, Manual, Training }
 
     [Header("References")]
     [SerializeField] private ThirdPersonCamera thirdPersonCamera;
@@ -155,11 +155,12 @@ public class VR_Player_Behavior : MonoBehaviour
             isRandom = true;
             SetRandomTrainingMode();
         }
-        else if(curMode == TrainingMode.GAIL)
+        else if (curMode == TrainingMode.GAIL)
         {
             isGail = true;
             SetRandomTrainingMode();
         }
+
         // camera setting for vr
         if(curMode == TrainingMode.Manual)
         {
@@ -204,6 +205,14 @@ public class VR_Player_Behavior : MonoBehaviour
         if (isRandom || isGail)
         {
             SetRandomTrainingMode();
+        }
+        if (curMode == TrainingMode.GAIL || curMode == TrainingMode.Training)
+        {
+            IsUseInternalLogic = false;
+        }
+        else
+        {
+            IsUseInternalLogic = true;
         }
 
         CurrentState = PlayerState.Idle;
@@ -907,19 +916,15 @@ public class VR_Player_Behavior : MonoBehaviour
         var availableModes = new List<TrainingMode>();
         if (isRandom)
         {
-            foreach (TrainingMode mode in allModes)
-            {
-                // exclude escape, onlydash, SmartAttack, GAIL mode and any long ranged mode
-                if (mode != TrainingMode.Manual && mode != TrainingMode.Random && mode != TrainingMode.Escape && mode != TrainingMode.OnlyDash && mode!= TrainingMode.SmartAttack && mode != TrainingMode.GAIL && mode != TrainingMode.LongRangeAttack && mode != TrainingMode.DashAtkRanged && mode != TrainingMode.AtkDashRanged)
-                {
-                    availableModes.Add(mode);
-                }
-            }
+            availableModes.Add(TrainingMode.AutoTrace);
+            availableModes.Add(TrainingMode.AttackAndRun);
+            availableModes.Add(TrainingMode.AttackAndDash);
         }
         else if (isGail)
         {
-            availableModes.Add(TrainingMode.DashAtkRanged);
-            availableModes.Add(TrainingMode.AtkDashRanged);
+            availableModes.Add(TrainingMode.AttackAndRun);
+            availableModes.Add(TrainingMode.AttackAndDash);
+            availableModes.Add(TrainingMode.GAIL);
         }
         
         curMode = availableModes[Random.Range(0, availableModes.Count)];

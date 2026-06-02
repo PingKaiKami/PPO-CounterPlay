@@ -15,7 +15,7 @@ public class VR_Sword : MonoBehaviour
     private Quaternion lastRotation;
     private float currentAngularSpeedRad; // 單位：Radians per second
     private float lastDamageTime;
-    private const float damageCooldown = 0.5f;
+    private const float damageCooldown = 1.0f;
 
     // 新增：用來記錄目前在「劍刃碰撞範圍內」的所有敵人
     private HashSet<VR_HP_Enemy> enemiesInReach = new HashSet<VR_HP_Enemy>();

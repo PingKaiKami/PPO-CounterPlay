@@ -39,7 +39,6 @@ public class VR_Player_Agent : Agent
         currentDemoMode = player.curMode;
 
         if (playerHP != null) playerHP.ResetHealth();
-        if (enemyHP != null) enemyHP.ResetHealth();
     }
 
     public override void CollectObservations(VectorSensor sensor)

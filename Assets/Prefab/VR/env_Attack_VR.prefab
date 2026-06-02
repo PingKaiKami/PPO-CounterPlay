@@ -683,6 +683,7 @@ MonoBehaviour:
   enemyInArea: {fileID: 5282798761590561923}
   playerAgent: {fileID: 2866473035481384355}
   maxEpisodeTime: 60
+  isDebug: 0
   AutoStop: 0
   maxEpisodes: 10
 --- !u!1 &4728655948990384915
@@ -1252,7 +1253,7 @@ MonoBehaviour:
   FP_Camera: {fileID: 0}
   TP_Camera_main: {fileID: 0}
   TP_Camera_freelook: {fileID: 0}
-  curMode: 9
+  curMode: 12
   moveSpeed: 5
   rotationSpeed: 10
   dashSpeed: 30
@@ -1303,7 +1304,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 0e0530a51f47ff244bc2fdbc89ba5ae0, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: 1762134437b932a4b950ad5164fead46, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 2
   m_BehaviorName: PlayerAI
@@ -1755,7 +1756,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: bbcd15657525181408c947d55f10141c, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: a3b8ebce825498949bd9e11b235922a2, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: EnemyAI

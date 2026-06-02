@@ -113,7 +113,6 @@ public class VR_Enemy : Agent
         curState = EnemyState.Idle;
         mat.color = oriColor;
         if (enemy_HP != null) enemy_HP.ResetHealth();
-        if (player_HP != null) player_HP.ResetHealth();
         
     }
 

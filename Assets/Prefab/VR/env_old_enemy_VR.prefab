@@ -393,7 +393,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   swordTip: {fileID: 713355891210396145}
-  minAngularSpeedRad: 3
+  minAngularSpeedRad: 5
   player: {fileID: 1082923543890421881}
   isDebug: 0
 --- !u!1 &1933827735452481963
@@ -765,7 +765,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: bbcd15657525181408c947d55f10141c, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: a3b8ebce825498949bd9e11b235922a2, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 2
   m_BehaviorName: EnemyAI
@@ -1659,7 +1659,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 22
+    VectorObservationSize: 30
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 9
@@ -2092,8 +2092,9 @@ MonoBehaviour:
   enemyInArea: {fileID: 8656349280661446446}
   playerAgent: {fileID: 7460859304300761844}
   maxEpisodeTime: 60
+  isDebug: 0
   AutoStop: 0
-  maxEpisodes: 10
+  maxEpisodes: 30
 --- !u!1 &6538494689288686129
 GameObject:
   m_ObjectHideFlags: 0
