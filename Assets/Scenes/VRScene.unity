@@ -24402,6 +24402,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c68611d2bfa86f468f0677e5ae58790, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  maxEpisodesPerModel: 1000
   currentStats: []
   liveSummary: 
 --- !u!4 &1969616672
@@ -30526,7 +30527,7 @@ PrefabInstance:
     - target: {fileID: 7603951154638953204, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
       propertyPath: AutoStop
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7603951154638953204, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
