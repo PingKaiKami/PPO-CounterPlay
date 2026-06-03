@@ -30414,7 +30414,7 @@ PrefabInstance:
     - target: {fileID: 998353225800638845, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
       propertyPath: isLogging
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 998353225800638845, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
@@ -30477,6 +30477,12 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5023382273641008949, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
+        type: 3}
+      propertyPath: m_Model
+      value: 
+      objectReference: {fileID: 5022602860645237092, guid: 6c32565ac23fc7848b3cbe3623a0d988,
+        type: 3}
     - target: {fileID: 5282798761590561923, guid: 5d7506e93d53a0444b5b1f1ba2ca23b3,
         type: 3}
       propertyPath: isVerify

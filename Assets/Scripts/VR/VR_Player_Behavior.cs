@@ -76,6 +76,12 @@ public class VR_Player_Behavior : MonoBehaviour
     private string csvPath;
     private float lastStrafeInput = 0f; // 紀錄最後一次的側移量
 
+    [Header("Tactical Logging")]
+    private VR_Enemy.EnemyState lastEnemyState = VR_Enemy.EnemyState.Idle;
+    private bool isTrackingCounter = false;
+    private float counterTimer = 0f;
+    private float lastCounterReactionTime = -2f;
+
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;
@@ -92,6 +98,7 @@ public class VR_Player_Behavior : MonoBehaviour
     private bool isGail = false;
     private bool isManual = false;
     private bool isForTraining = false;
+    private bool hadOpportunityToDash = false;
     private List<GameObject> _activeProjectiles = new List<GameObject>();
     public IReadOnlyList<GameObject> ActiveProjectiles => _activeProjectiles;
     private float _actionProgress = 0f;
@@ -194,7 +201,7 @@ public class VR_Player_Behavior : MonoBehaviour
             // 如果檔案不存在，寫入表頭
             if (!System.IO.File.Exists(csvPath))
             {
-                System.IO.File.WriteAllText(csvPath, "Label,Distance,StrafingIntensity,AngularVelocity\n");
+                System.IO.File.WriteAllText(csvPath, "Label,Distance,StrafingIntensity,AngularVelocity,ReactionTime\n");
             }
         }
     }
@@ -961,27 +968,74 @@ public class VR_Player_Behavior : MonoBehaviour
         return (requester != null) ? requester.DecisionPeriod : 1;
     }
 
-    // 簡化版的紀錄邏輯
-    // 在 VR_Player (繼承類) 的 FixedUpdate 或 VR_Player_Behavior 中呼叫
     protected void PerformDataLogging()
     {
         if (!isLogging || enemy == null || activateSword == null) return;
 
-        // 1. 取得狀態：距離
-        float dist = Vector3.Distance(transform.position, enemy.transform.position);
+        VR_Enemy enemyScript = enemy.GetComponent<VR_Enemy>();
+        if (enemyScript == null) return;
 
-        // 2. 取得動作：側移強度 (已在 ExecuteAgentAction 存入 lastStrafeInput)
+        VR_Enemy.EnemyState currentEnemyState = enemyScript.GetEnemyState();
+
+        if (lastEnemyState == VR_Enemy.EnemyState.StartUp && currentEnemyState == VR_Enemy.EnemyState.Recovery)
+        {
+            isTrackingCounter = true;
+            counterTimer = 0f;
+            lastCounterReactionTime = -2f;
+
+            hadOpportunityToDash = _canDash || _isDashing; 
+        }
+
+        if (isTrackingCounter)
+        {
+            counterTimer += Time.fixedDeltaTime;
+
+            if (_canDash)
+            {
+                hadOpportunityToDash = true;
+            }
+
+            if (_isDashing) 
+            {
+                Vector3 toEnemy = (enemy.transform.position - transform.position).normalized;
+                Vector3 dashDir = rb.velocity.normalized; 
+                float alignment = Vector3.Dot(dashDir, toEnemy);
+
+                if (alignment > 0.7f) 
+                {
+                    lastCounterReactionTime = hadOpportunityToDash ? counterTimer : -2f; 
+                    isTrackingCounter = false; 
+                }
+            }
+
+            // 判定 B：敵人脫離了 Recovery 狀態
+            if (currentEnemyState != VR_Enemy.EnemyState.Recovery)
+            {
+                lastCounterReactionTime = hadOpportunityToDash ? -1f : -2f; 
+                isTrackingCounter = false; 
+            }
+        }
+
+        lastEnemyState = currentEnemyState;
+
+        // =========================================================
+        // 數據寫入 CSV
+        // =========================================================
+        float dist = Vector3.Distance(transform.position, enemy.transform.position);
         float strafe = lastStrafeInput;
 
-        // 3. 取得動作：角速度 (弧度)
-        VR_Sword sword = sword_object.GetComponent<VR_Sword>();
-        float angVel = sword != null ? sword.GetAngularSpeedRad() : 0f;
+        VR_Sword swordScript = sword_object.GetComponent<VR_Sword>();
+        float angVel = swordScript != null ? swordScript.GetAngularSpeedRad() : 0f;
 
-        // 4. 寫入 CSV (Label, Dist, Strafe, AngVel)
         string label = IsUseInternalLogic ? "Human" : "AI";
-        _logCache.AppendLine($"{label},{dist:F3},{strafe:F3},{angVel:F3}");
 
-        // 當快取超過一定長度再寫入，或在 Episode 結束時寫入
+        _logCache.AppendLine($"{label},{dist:F3},{strafe:F3},{angVel:F3},{lastCounterReactionTime:F3}");
+
+        if (lastCounterReactionTime == -1f || lastCounterReactionTime > 0f)
+        {
+            lastCounterReactionTime = -2f; 
+        }
+
         if (_logCache.Length > 1024)
         {
             System.IO.File.AppendAllText(csvPath, _logCache.ToString());

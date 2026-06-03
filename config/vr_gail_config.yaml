@@ -32,11 +32,11 @@ behaviors:
         use_vail: false
         demo_path: C:\Users\User\AI_Enemy\Demonstrations\PlayerdataNew.demo
     
-    behavioral_cloning:
-      strength: 1.0
-      gamma: 0.99
-      demo_path: C:\Users\User\AI_Enemy\Demonstrations\PlayerdataNew.demo
-      steps: 2000000
+    # behavioral_cloning:
+    #   strength: 1.0
+    #   gamma: 0.99
+    #   demo_path: C:\Users\User\AI_Enemy\Demonstrations\PlayerdataNew.demo
+    #   steps: 10000000
 
     checkpoint_interval: 500000
     max_steps: 10000000
