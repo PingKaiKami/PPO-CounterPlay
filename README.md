@@ -46,27 +46,40 @@
 
 ```mermaid
 graph TD
-    classDef actionfill fill:#bbf,stroke:#333,stroke-width:1px;
-    classDef dmgFill fill:#f96,stroke:#333,stroke-width:2px;
-    classDef recoveryFill fill:#ccc,stroke:#333,stroke-width:1px;
+    classDef actionfill fill:#cce0ff,stroke:#3366cc,stroke-width:2px,color:#003366;
+    classDef dmgFill fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12;
+    classDef recoveryFill fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#374151;
+    classDef skillTitle fill:#1e293b,stroke:#475569,stroke-width:2px,color:#ffffff;
 
-    Start([發動攻擊]) --> NA[Normal Attack]
-    Start --> TA[Triple Attack]
-    Start --> SA[Strong Attack]
-    Start --> FA[Fast Attack]
+    Start([發動攻擊]) --> NA[Normal Attack]:::skillTitle
+    Start --> TA[Triple Attack]:::skillTitle
+    Start --> SA[Strong Attack]:::skillTitle
+    Start --> FA[Fast Attack]:::skillTitle
 
-    NA --> NA_Pre[前搖 1.0s]:::actionfill --> NA_Hit{💥 打擊}:::dmgFill
+    %% Normal Attack
+    NA --> NA_Pre[前搖 1.0s]:::actionfill 
+    NA_Pre --> NA_Hit{💥 打擊}:::dmgFill
     NA_Hit -- "傷害 25<br>120°/R3" --> NA_Post[後搖 0.5s]:::recoveryFill
 
-    TA --> TA_Pre1[段1前搖 1.5s]:::actionfill --> TA_Hit1{💥 打擊 1}:::dmgFill
-    TA_Hit1 -- "位移+1, 傷害15<br>60°/R2" --> TA_Pre2[段2前搖 0.5s]:::actionfill --> TA_Hit2{💥 打擊 2}:::dmgFill
-    TA_Hit2 -- "位移+1, 傷害25<br>60°/R2" --> TA_Pre3[段3前搖 0.5s]:::actionfill --> TA_Hit3{💥 打擊 3}:::dmgFill
+    %% Triple Attack
+    TA --> TA_Pre1[段1前搖 1.5s]:::actionfill 
+    TA_Pre1 --> TA_Hit1{💥 打擊 1}:::dmgFill
+    TA_Hit1 -- "位移+1, 傷害15<br>60°/R2" --> TA_Pre2[段2前搖 0.5s]:::actionfill 
+    TA_Pre2 --> TA_Hit2{💥 打擊 2}:::dmgFill
+    TA_Hit2 -- "位移+1, 傷害25<br>60°/R2" --> TA_Pre3[段3前搖 0.5s]:::actionfill 
+    TA_Pre3 --> TA_Hit3{💥 打擊 3}:::dmgFill
     TA_Hit3 -- "位移+2, 傷害30<br>60°/R3" --> TA_Post[後搖 2.0s]:::recoveryFill
 
-    SA --> SA_Pre1[段1前搖 1.0s]:::actionfill --> SA_Hit1{💥 打擊 1}:::dmgFill
-    SA_Hit1 -- "傷害15<br>180°/R2" --> SA_Pre2[段2前搖 1.0s]:::actionfill --> SA_Hit2{💥 打擊 2}:::dmgFill
+    %% Strong Attack
+    SA --> SA_Pre1[段1前搖 1.0s]:::actionfill 
+    SA_Pre1 --> SA_Hit1{💥 打擊 1}:::dmgFill
+    SA_Hit1 -- "傷害15<br>180°/R2" --> SA_Pre2[段2前搖 1.0s]:::actionfill
+    SA_Pre2 --> SA_Hit2{💥 打擊 2}:::dmgFill
+    SA_Hit2 -- "位移+3, 傷害30<br>120°/R3" --> SA_Post[後搖 3.0s]:::recoveryFill
 
-    FA --> FA_Pre[前搖 0.5s]:::actionfill --> FA_Hit{💥 打擊}:::dmgFill
+    %% Fast Attack
+    FA --> FA_Pre[前搖 0.5s]:::actionfill 
+    FA_Pre --> FA_Hit{💥 打擊}:::dmgFill
     FA_Hit -- "位移+2, 傷害25<br>90°/R2" --> FA_Post[後搖 2.0s]:::recoveryFill
     
 ```
@@ -93,30 +106,25 @@ graph TD
 
 ```mermaid
 graph LR
-    %% 全域風格設定
     classDef agentStyle fill:#fff,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
     classDef envStyle fill:#fff,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
 
-    %% 節點宣告
     Agent[Agent]:::agentStyle
 
-    %% 利用 Subgraph 製作右側的時間過渡與環境區塊
     subgraph Time_Boundary [Time Step: t + 1]
         Env[Environment]:::envStyle
     end
-    
-    %% 設定子圖外框為虛線，模擬原圖的垂直虛線剪影
+
     style Time_Boundary fill:#fafafa,stroke:#666,stroke-width:2px,stroke-dasharray: 5 5;
 
-    %% 數據流向與箭頭標籤
     Agent ----> |"action (A_t)"| Env
     Env ----> |"reward (R_t)"| Agent
     Env ==> |"state (S_t)"| Agent
 
-    %% 微調線條顏色與粗細（0: Action, 1: Reward, 2: State）
     linkStyle 0 stroke:#000,stroke-width:2px;
     linkStyle 1 stroke:#000,stroke-width:1px;
     linkStyle 2 stroke:#000,stroke-width:3px;
+    
 ```
 
 ### PPO 核心目標函數
