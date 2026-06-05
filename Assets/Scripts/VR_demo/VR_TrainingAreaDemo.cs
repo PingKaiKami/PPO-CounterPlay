@@ -10,50 +10,53 @@ public class VR_TrainingAreaDemo : MonoBehaviour
     public VR_Player_BehaviorDemo playerInArea;
 
     [Header("Episode Settings")]
-    public float maxEpisodeTime = 60f;
-    private float episodeTimer;
+    private bool isReset;
 
-    private VR_HP_Player playerHP;
+    private VR_HP_Player_Demo playerHP;
     private VR_HP_Enemy enemyHP;
 
     void Start()
     {
-        if (playerInArea != null) playerHP = playerInArea.GetComponentInChildren<VR_HP_Player>();
+        if (playerInArea != null) playerHP = playerInArea.GetComponentInChildren<VR_HP_Player_Demo>();
         if (enemyInArea != null) enemyHP = enemyInArea.GetComponentInChildren<VR_HP_Enemy>();
+        isReset = false;
     }
 
     void FixedUpdate()
     {
-        if (playerInArea == null || enemyInArea == null) return;
-
-        episodeTimer += Time.fixedDeltaTime;
+        if (playerInArea == null || enemyInArea == null || isReset) return;
 
         // --- 判斷結束與重置條件 ---
         if (playerHP != null && playerHP.IsDead()) {
-            ResetAll(); // 玩家死
+            ResetAll("Enemy"); // 玩家死
         }
         else if (enemyHP != null && enemyHP.IsDead()) {
-            ResetAll(); // 敵人死
-        }
-        else if (episodeTimer >= maxEpisodeTime) {
-            ResetAll(); // 時間到平手
+            ResetAll("Player"); // 敵人死
         }
         else if (playerInArea.transform.position.y < -1f || enemyInArea.transform.position.y < -1f) {
-            ResetAll(); // 掉落地圖
+            ResetAll("Other"); // 掉落地圖
         }
     }
 
     /// <summary>
     /// 統一重置環境與物件
     /// </summary>
-    public void ResetAll()
+    public void ResetAll(string winner)
     {
-        enemyInArea.ResetEnemy();
-        playerInArea.ResetStateToIdle();
-
-        OnEpisodeEnd?.Invoke();
-
-        episodeTimer = 0f;
+        isReset = true;
+        if(winner == "Enemy")
+        {
+            playerInArea.gameObject.GetComponent<VR_HitEffect>().PlayDeathEffect();
+        }
+        else if(winner == "Player")
+        {
+            enemyInArea.TriggerDeath();
+        }
+        else
+        {
+            enemyInArea.TriggerDeath();
+            Debug.Log("fall out");
+        }
     }
 
     public void TriggerEpisodeEnd() => OnEpisodeEnd?.Invoke();

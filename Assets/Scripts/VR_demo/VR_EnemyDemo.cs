@@ -1,6 +1,8 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
@@ -49,6 +51,7 @@ public class VR_EnemyDemo : MonoBehaviour
     // 唯讀外部屬性
     public float WeaponVelocityMagnitude => weaponVelocity.magnitude;
     public EnemyState GetEnemyState() => curState;
+    public bool isStart = false;
 
     // 內部物理與組件變數
     private Vector3 weaponVelocity;
@@ -61,10 +64,7 @@ public class VR_EnemyDemo : MonoBehaviour
     private Vector3 lookDirection;
     private Vector3 initialPosition;
     private Quaternion initialRotation;
-    
-    // 追蹤當前攻擊的協程，方便隨時中斷
     private Coroutine currentAttackCoroutine;
-
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -83,19 +83,28 @@ public class VR_EnemyDemo : MonoBehaviour
             currentWeaponTransform = sword.gameObject.transform;
             lastPos = currentWeaponTransform.position;
         }
+
+        if(DemoManager.Instance.ModelType == "Model A")
+        {
+            currentMode = EnemyMode.ChasingAttack;
+            animator.SetBool("isStational", false);
+        }
+        else if(DemoManager.Instance.ModelType == "Model B")
+        {
+            currentMode = EnemyMode.CounterAttack;
+            animator.SetBool("isStational", false);
+        }
+        else if(DemoManager.Instance.ModelType == "Model C")
+        {
+            currentMode = EnemyMode.StationaryGuard;
+            animator.SetBool("isStational", true);
+        }
+        isStart = false;
     }
 
     void Update()
     {
-        // 如果已經死亡，切斷所有行為大腦
-        if (curState == EnemyState.Dead) return;
-
-        // 檢查是否死亡（實時監測血量組件）
-        if (enemy_HP != null && enemy_HP.IsDead())
-        {
-            TriggerDeath();
-            return;
-        }
+        if (curState == EnemyState.Dead || !interactor_right.hasSelection) return;
 
         switch (currentMode)
         {
@@ -191,13 +200,11 @@ public class VR_EnemyDemo : MonoBehaviour
         }
     }
 
-    // --- 【核心新增功能二：觸發死亡】 ---
-    private void TriggerDeath()
+    public void TriggerDeath()
     {
         curState = EnemyState.Dead;
         moveDirection = Vector3.zero;
 
-        // 停止所有動作
         StopAllCoroutines();
 
         if (enemyWeapon != null) enemyWeapon.DisableWeaponHitbox();
@@ -207,9 +214,14 @@ public class VR_EnemyDemo : MonoBehaviour
             animator.SetTrigger("Death");
         }
 
-        if (printState) Debug.Log("【敵人死亡】觸發 Death 動畫。");
+        StartCoroutine(Back());
     }
 
+    IEnumerator Back()
+    {
+        yield return new WaitForSeconds(2f);
+        SceneManager.LoadScene("Menu_Demo");
+    }
 
     #region AI 模式邏輯區 (Manual, Chasing, Counter, Guard)
     private void HandleManualInput()
@@ -382,21 +394,22 @@ public class VR_EnemyDemo : MonoBehaviour
         {
             animator.SetTrigger("Attack1");
             targetStateName = "root|stab";
+            yield return new WaitForSeconds(0.5f);
+            enemyWeapon.EnableWeaponHitbox();
         }
         else if (combo.comboName == "slash01")
         {
             animator.SetTrigger("Attack2");
             targetStateName = "root|slash01";
+            yield return new WaitForSeconds(0.15f);
+            enemyWeapon.EnableWeaponHitbox();
         }
         else if (combo.comboName == "slash02")
         {
             animator.SetTrigger("Attack3");
             targetStateName = "root|slash02";
-        }
-
-        if (enemyWeapon != null && combo.attackSteps != null)
-        {
-            enemyWeapon.EnableWeaponHitbox(combo.attackSteps[0].damage);
+            yield return new WaitForSeconds(0.3f);
+            enemyWeapon.EnableWeaponHitbox();
         }
         
         yield return null; 

@@ -71,6 +71,12 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
     public bool IsTesting = false;
     public bool printState = false;
 
+    [Header("VR Input Actions")]
+    [SerializeField] private InputActionReference moveAction;   // 綁定左手搖桿 (Vector2)
+    [SerializeField] private InputActionReference turnAction;   // 綁定右手搖桿 (Vector2)
+
+    private bool _hasTurned = false;
+
     protected Rigidbody rb;
     protected AttackRange attackRange;
     protected float attackRadius;
@@ -287,25 +293,41 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
         switch (mode)
         {
             case TrainingMode.Manual:
-                var keyboard = Keyboard.current;
-                if (keyboard != null)
-                {
-                    float h = 0; float v = 0;
-                    if (keyboard.aKey.isPressed) h = -1f;
-                    if (keyboard.dKey.isPressed) h = 1f;
-                    if (keyboard.wKey.isPressed) v = 1f;
-                    if (keyboard.sKey.isPressed) v = -1f;
+                // var keyboard = Keyboard.current;
+                // if (keyboard != null)
+                // {
+                //     float h = 0; float v = 0;
+                //     if (keyboard.aKey.isPressed) h = -1f;
+                //     if (keyboard.dKey.isPressed) h = 1f;
+                //     if (keyboard.wKey.isPressed) v = 1f;
+                //     if (keyboard.sKey.isPressed) v = -1f;
 
-                    // 直接拿相機的 Forward，不用擔心迴圈問題了！
-                    Vector3 camF = xrOrigin.Camera.transform.forward;
-                    Vector3 camR = xrOrigin.Camera.transform.right;
-                    camF.y = 0; camR.y = 0;
+                //     // 直接拿相機的 Forward，不用擔心迴圈問題了！
+                //     Vector3 camF = xrOrigin.Camera.transform.forward;
+                //     Vector3 camR = xrOrigin.Camera.transform.right;
+                //     camF.y = 0; camR.y = 0;
 
-                    intent.moveDirection = (camF.normalized * v + camR.normalized * h).normalized;
+                //     intent.moveDirection = (camF.normalized * v + camR.normalized * h).normalized;
                     
-                    // lookDirection 設為跟移動方向一致即可，或是設為 camF
-                    intent.lookDirection = camF.normalized;
-                }
+                //     // lookDirection 設為跟移動方向一致即可，或是設為 camF
+                //     intent.lookDirection = camF.normalized;
+                // }
+                // 1. 完整讀取左手搖桿的 Vector2 數值 (x 為左右平移, y 為前後移動)
+                Vector2 moveInput = moveAction != null ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
+
+                // 2. 獲取相機的水平方向（依舊以頭盔視角為基準的相對方向）
+                Vector3 camF = xrOrigin.Camera.transform.forward;
+                Vector3 camR = xrOrigin.Camera.transform.right;
+                camF.y = 0; camR.y = 0;
+                camF.Normalize();
+                camR.Normalize();
+
+                // 3. 核心修改：結合搖桿的 X 與 Y 軸，達成全方位移動
+                // 這樣推斜前方就會走斜前方，往左推就是往左橫移（Strafe）
+                intent.moveDirection = (camF * moveInput.y + camR * moveInput.x).normalized;
+                
+                // 讓身體基礎朝向與相機前方一致（VR 常用設定）
+                intent.lookDirection = camF;
                 break;
 
             case TrainingMode.AutoTrace:
@@ -376,27 +398,56 @@ public class VR_Player_BehaviorDemo : MonoBehaviour
         // =========================================================
         if (mode == TrainingMode.Manual)
         {
-            if (thirdPersonCamera)
+            // if (thirdPersonCamera)
+            // {
+            //     if (_isAiming || Input.GetMouseButton(1)) // 這裡加強判斷
+            //     {
+            //         Vector3 mouseWorldPos = GetMouseWorldPosition();
+            //         thirdPersonCamera.enabled = false;
+            //         if (mouseWorldPos != Vector3.zero)
+            //             intent.lookDirection = mouseWorldPos - transform.position;
+            //         else
+            //             intent.lookDirection = intent.moveDirection;
+            //     }
+            //     else
+            //     {
+            //         thirdPersonCamera.enabled = true;
+            //         intent.lookDirection = intent.moveDirection;
+            //     }
+            // }
+            // else
+            // {
+            //     intent.lookDirection = intent.moveDirection;
+            // }
+            // 讀取右手搖桿數值
+            Vector2 turnInput = turnAction != null ? turnAction.action.ReadValue<Vector2>() : Vector2.zero;
+
+            // 當右搖桿往左/右推超過閾值（例如 0.5），且上一次推的動作已經放開過
+            if (Mathf.Abs(turnInput.x) > 0.5f)
             {
-                if (_isAiming || Input.GetMouseButton(1)) // 這裡加強判斷
+                if (!_hasTurned)
                 {
-                    Vector3 mouseWorldPos = GetMouseWorldPosition();
-                    thirdPersonCamera.enabled = false;
-                    if (mouseWorldPos != Vector3.zero)
-                        intent.lookDirection = mouseWorldPos - transform.position;
-                    else
-                        intent.lookDirection = intent.moveDirection;
-                }
-                else
-                {
-                    thirdPersonCamera.enabled = true;
-                    intent.lookDirection = intent.moveDirection;
+                    // 計算旋轉方向：往右推為正15度，往左推為負15度
+                    float turnAngle = turnInput.x > 0 ? 15f : -15f;
+                    
+                    // 直接對角色進行水平旋轉
+                    transform.Rotate(Vector3.up, turnAngle);
+                    
+                    // 標記已旋轉，直到玩家放開搖桿前不重複觸發
+                    _hasTurned = true; 
                 }
             }
             else
             {
-                intent.lookDirection = intent.moveDirection;
+                // 當搖桿回彈回中心點附近（小於 0.2），重置標記
+                if (Mathf.Abs(turnInput.x) < 0.2f)
+                {
+                    _hasTurned = false;
+                }
             }
+
+            // VR 模式下，手動模式的 lookDirection 直接跟隨角色目前的 transform.forward 即可
+            intent.lookDirection = transform.forward;
         }
         else
         {

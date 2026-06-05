@@ -14,9 +14,15 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/MixedTrainingScene.unity
     guid: 15f39acb33e48ac4bb3771f951936bab
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/VRScene.unity
     guid: 319dafa5c80f29f428dc1e0d03f04177
+  - enabled: 1
+    path: Assets/Scenes/Demo/Menu_Demo.unity
+    guid: 022e695c921cd1740afb3b89d5fa86df
+  - enabled: 1
+    path: Assets/Scenes/Demo/VRScene_Demo.unity
+    guid: 081a309bc12717b4cb0d8e425a848854
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11cdb0934d3c13440b5a18314cb750e2,
       type: 2}
